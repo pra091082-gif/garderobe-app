@@ -81,6 +81,29 @@ export interface QuizRecord {
   at: number
 }
 
+/** Body measurements in cm (shoe size in EU), plus the sizes someone usually wears. All optional. */
+export interface Measurements {
+  heightCm?: number
+  weightKg?: number
+  chestCm?: number
+  underbustCm?: number
+  waistCm?: number
+  hipCm?: number
+  inseamCm?: number
+  neckCm?: number
+  sleeveCm?: number
+  footCm?: number
+  shoeEu?: string
+  braSize?: string
+  usualTop?: string
+  usualBottom?: string
+  updatedAt: number
+}
+
+/** How a size turned out for this person. */
+export const FITS = ['Valt klein', 'Past goed', 'Valt groot'] as const
+export type Fit = (typeof FITS)[number]
+
 export interface Profile {
   id: string
   name: string
@@ -89,6 +112,7 @@ export interface Profile {
   job?: Job
   style?: StyleProfile
   quizzes?: QuizRecord[]
+  measurements?: Measurements
   createdAt: number
 }
 
@@ -110,6 +134,8 @@ export interface Item {
   size?: string
   price?: number
   purchasedAt?: string
+  /** How this size fits; teaches the size advice how each brand falls. */
+  fit?: Fit
   wornCount: number
   lastWorn?: number
   createdAt: number
@@ -225,6 +251,10 @@ export async function saveQuizResult(profileId: string, style: StyleProfile, per
     if (!p) return
     await db.profiles.update(profileId, { style, quizzes: [...(p.quizzes ?? []), { period, season, at: Date.now() }] })
   })
+}
+
+export async function saveMeasurements(profileId: string, m: Omit<Measurements, 'updatedAt'>): Promise<void> {
+  await db.profiles.update(profileId, { measurements: { ...m, updatedAt: Date.now() } })
 }
 
 export async function addFeedback(f: Omit<Feedback, 'id' | 'createdAt'>): Promise<void> {

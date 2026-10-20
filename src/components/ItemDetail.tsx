@@ -68,7 +68,10 @@ export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () =
         {item.size && (
           <>
             <dt>Maat</dt>
-            <dd>{item.size}</dd>
+            <dd>
+              {item.size}
+              {item.fit && <span className="muted"> · {item.fit.toLowerCase()}</span>}
+            </dd>
           </>
         )}
         {item.seasons.length > 0 && (

@@ -1,14 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { exportBackup, importBackup } from '../backup'
-import { categoriesFor, db, deleteProfile } from '../db'
+import { categoriesFor, db, deleteProfile, saveMeasurements } from '../db'
 import { disconnect } from '../gmail'
 import { newSignals, quizDue } from '../learn'
 import { useFeedback, useProfile, useProfileItems } from '../profile'
 import { saveSettings, useSettings } from '../settings'
+import { hasMeasurements, remeasureDue } from '../sizes'
 import { currentSeason, nextSeasonStart } from '../util'
 import { Icon } from './icons'
+import { MeasurementsForm } from './MeasurementsForm'
 import { ProfileForm } from './ProfileForm'
+import { MeasurementsSummary } from './SizeAdvisor'
 import { StyleCard, StyleQuiz } from './StyleQuiz'
 import { Loading, Photo, Sheet } from './ui'
 
@@ -19,6 +22,7 @@ export function ProfileView() {
   const outfitCount = useLiveQuery(() => db.outfits.where('profileId').equals(profile.id).count(), [profile.id]) ?? 0
   const settings = useSettings()
   const [editing, setEditing] = useState(false)
+  const [measuring, setMeasuring] = useState(false)
   const [quiz, setQuiz] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [message, setMessage] = useState<string>()
@@ -129,6 +133,28 @@ export function ProfileView() {
         {done.length > 0 && ` Gedaan: ${done.map((q) => q.period).join(', ')}.`}
       </p>
       {updating && <Loading>Stijlprofiel bijwerken…</Loading>}
+
+      <h2 className="section-title" id="maten">
+        Maten en afmetingen
+      </h2>
+      {remeasureDue(profile) && (
+        <p className="message">Deze afmetingen zijn ouder dan een half jaar. Kinderen groeien snel: meet opnieuw.</p>
+      )}
+      {hasMeasurements(profile.measurements) ? (
+        <MeasurementsSummary items={items} />
+      ) : (
+        <p className="muted">
+          Nog geen afmetingen. Met je afmetingen geeft de app per merk het juiste maatadvies, want elk merk valt anders.
+        </p>
+      )}
+      <div className="form-actions start">
+        <button className="btn" onClick={() => setMeasuring(true)}>
+          <Icon name="ruler" size={18} /> {hasMeasurements(profile.measurements) ? 'Afmetingen bijwerken' : 'Afmetingen invullen'}
+        </button>
+        <a className="btn" href="#aankopen">
+          Maatadvies per merk
+        </a>
+      </div>
 
       <h2 className="section-title">Wat de stylist heeft geleerd</h2>
       <div className="stats">
@@ -248,6 +274,19 @@ export function ProfileView() {
         </button>
       </div>
 
+      {measuring && (
+        <Sheet title="Maten en afmetingen" onClose={() => setMeasuring(false)}>
+          <MeasurementsForm
+            department={profile.department}
+            value={profile.measurements}
+            submitLabel="Opslaan"
+            onSubmit={async (m) => {
+              await saveMeasurements(profile.id, m)
+              setMeasuring(false)
+            }}
+          />
+        </Sheet>
+      )}
       {editing && (
         <Sheet title="Gegevens wijzigen" onClose={() => setEditing(false)}>
           <ProfileForm

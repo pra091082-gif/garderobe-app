@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { createProfile, type Profile } from '../db'
+import { createProfile, saveMeasurements, type Profile } from '../db'
 import { setActiveProfile } from '../profile'
 import { saveSettings, useSettings } from '../settings'
 import { Icon, type IconName } from './icons'
+import { MeasurementsForm } from './MeasurementsForm'
 import { ProfileForm } from './ProfileForm'
 import { StyleQuiz } from './StyleQuiz'
 
@@ -11,10 +12,11 @@ const USPS: [IconName, string, string][] = [
   ['bag', 'Online aankopen automatisch', 'Bestellingen van Zalando, BestSecret en Otrium uit je Gmail.'],
   ['briefcase', 'Outfits voor werk en vrije tijd', 'Afgestemd op je functie, je bedrijf en de dresscode.'],
   ['sparkle', 'Een stylist die je leert kennen', 'Begint met een stijltest en leert van elke keuze.'],
+  ['ruler', 'Altijd de juiste maat', 'Maatadvies per merk op basis van je eigen afmetingen.'],
 ]
 
 /**
- * First run (and "add profile"): welcome → who + work → style test.
+ * First run (and "add profile"): welcome → who + work → measurements → style test.
  * With `skipWelcome` it is used to add another person.
  */
 export function Onboarding({
@@ -27,7 +29,7 @@ export function Onboarding({
   onCreating?: () => void
   onDone: () => void
 }) {
-  const [step, setStep] = useState<'welcome' | 'profile' | 'quiz'>(skipWelcome ? 'profile' : 'welcome')
+  const [step, setStep] = useState<'welcome' | 'profile' | 'sizes' | 'quiz'>(skipWelcome ? 'profile' : 'welcome')
   const [profile, setProfile] = useState<Profile>()
   const settings = useSettings()
 
@@ -79,19 +81,43 @@ export function Onboarding({
         <>
           <div className="page-head">
             <div>
-              <span className="eyebrow">Stap 1 van 2</span>
+              <span className="eyebrow">Stap 1 van 3</span>
               <h1>Over {skipWelcome ? 'deze persoon' : 'jou'}</h1>
               <p>Zo weet de stylist voor wie de outfits zijn, en wat er op het werk gedragen wordt.</p>
             </div>
           </div>
           <ProfileForm
-            submitLabel="Verder naar de stijltest"
+            submitLabel="Verder"
             onCancel={skipWelcome ? onDone : undefined}
             onSubmit={async (input) => {
               onCreating?.()
               const p = await createProfile(input)
               setActiveProfile(p.id)
               setProfile(p)
+              setStep('sizes')
+            }}
+          />
+        </>
+      )}
+
+      {step === 'sizes' && profile && (
+        <>
+          <div className="page-head">
+            <div>
+              <span className="eyebrow">Stap 2 van 3</span>
+              <h1>Maten en afmetingen</h1>
+              <p>
+                Elk merk valt anders: een M bij het ene merk is een S bij het andere. Met je echte afmetingen adviseert de
+                app per merk en per webwinkel de juiste maat.
+              </p>
+            </div>
+          </div>
+          <MeasurementsForm
+            department={profile.department}
+            submitLabel="Verder naar de stijltest"
+            onSkip={() => setStep('quiz')}
+            onSubmit={async (m) => {
+              await saveMeasurements(profile.id, m)
               setStep('quiz')
             }}
           />

@@ -385,3 +385,73 @@ export async function findInspiration(p: Profile, item: Item, wardrobe: Item[]):
     explain(e)
   }
 }
+
+// ---------- Size advice for a brand or product ----------
+
+const SizeSchema = z.object({
+  size: z.string().describe('Geadviseerde maat precies zoals het merk hem noemt, bijv. "M", "40", "W32 L32", "128"'),
+  confidence: z.enum(['hoog', 'middel', 'laag']),
+  explanation: z.string().describe('2-4 zinnen: waarom deze maat, met de maten uit de maattabel die je vergeleek'),
+  alternative: z.string().nullable().describe('Wanneer een andere maat beter is, bijv. "Neem L als je het ruim wilt dragen"'),
+  brandFit: z.string().nullable().describe('Hoe het merk valt, bijv. "valt een halve maat klein"'),
+  missing: z.array(z.string()).describe('Afmetingen die het advies zekerder zouden maken'),
+  sizeChartUrl: z.string().nullable().describe('URL van de gebruikte maattabel, alleen als je die echt hebt gezien'),
+  comparison: z
+    .array(z.object({ measure: z.string(), yours: z.string(), chart: z.string() }))
+    .describe('Per afmeting: jouw waarde naast die van de geadviseerde maat in de tabel'),
+})
+export type SizeAdvice = z.infer<typeof SizeSchema>
+
+export async function sizeAdvice(
+  p: Profile,
+  ownSizes: string,
+  measurements: string,
+  ask: { brand: string; category: string; productUrl: string; fitWish: string },
+): Promise<SizeAdvice> {
+  try {
+    const ai = client()
+    const params = {
+      model: MODEL,
+      max_tokens: 16000,
+      ...FALLBACK,
+      output_config: { effort: 'medium' as const, format: betaZodOutputFormat(SizeSchema) },
+      tools: [
+        { type: 'web_search_20260209' as const, name: 'web_search' as const, max_uses: 4 },
+        { type: 'web_fetch_20260209' as const, name: 'web_fetch' as const, max_uses: 3 },
+      ],
+      system:
+        'Je bent een pasvormspecialist. Je adviseert de juiste maat bij een specifiek merk. Zoek de officiële maattabel ' +
+        'van het merk (of de productpagina als die gegeven is, inclusief pasvorm-opmerkingen en reviews over of het ' +
+        'klein of groot valt) en vergelijk die met de afmetingen van de persoon. De maten die de persoon al heeft bij ' +
+        'merken en hoe die vallen, zijn sterk bewijs: gebruik ze. Bij twijfel tussen twee maten: kies op basis van de ' +
+        'pasvormwens en noem de andere maat als alternatief. Verzin geen maattabellen; zeg het als je er geen vond en ' +
+        'verlaag dan de zekerheid. Antwoord in het Nederlands.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            personContext(p),
+            `Afmetingen:\n${measurements}`,
+            `Maten die al in de kast hangen:\n${ownSizes}`,
+            `Gevraagd: ${ask.category} van ${ask.brand || 'het merk op de productpagina'}.`,
+            ask.productUrl && `Productpagina: ${ask.productUrl}`,
+            ask.fitWish && `Pasvormwens: ${ask.fitWish}`,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ] as Anthropic.Beta.BetaMessageParam[],
+    }
+    let msg = await ai.beta.messages.parse(params)
+    // A long search/fetch turn can pause; resume it by sending the partial turn back.
+    for (let i = 0; i < 3 && msg.stop_reason === 'pause_turn'; i++) {
+      params.messages.push({ role: 'assistant', content: msg.content })
+      msg = await ai.beta.messages.parse(params)
+    }
+    const out = parsed(msg)
+    if (out.sizeChartUrl && !/^https?:\/\//.test(out.sizeChartUrl)) out.sizeChartUrl = null
+    return out
+  } catch (e) {
+    explain(e)
+  }
+}

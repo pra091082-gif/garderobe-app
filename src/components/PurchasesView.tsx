@@ -8,6 +8,7 @@ import { useProfile, useProfiles } from '../profile'
 import { useSettings } from '../settings'
 import { formatPrice, toggle } from '../util'
 import { Icon } from './icons'
+import { SizeAdvisor } from './SizeAdvisor'
 import { ColorDot, Loading } from './ui'
 
 const BATCH = 10
@@ -142,7 +143,18 @@ export function PurchasesView() {
       <div className="page-head">
         <div>
           <span className="eyebrow">Zalando · BestSecret · Otrium</span>
-          <h1>Online aankopen</h1>
+          <h1>Online kopen</h1>
+        </div>
+      </div>
+
+      <SizeAdvisor />
+
+      <div className="page-head">
+        <div>
+          <span className="eyebrow">Uit Gmail</span>
+          <h2 className="section-title" style={{ marginTop: 0, fontSize: '1.4rem' }}>
+            Online aankopen
+          </h2>
           <p>
             De app zoekt in Gmail naar bestelbevestigingen en haalt de gekochte kleding eruit, met foto, merk, maat en
             prijs. Jij kiest wat in welke kast komt. Gmail wordt alleen gelezen, nooit gewijzigd.

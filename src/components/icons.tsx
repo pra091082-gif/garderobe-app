@@ -17,6 +17,7 @@ const PATHS = {
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
   globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9Z',
   briefcase: 'M4 8h16v11H4V8ZM9 8V5h6v3M4 13h16',
+  ruler: 'M3 16 16 3l5 5L8 21l-5-5ZM7 12l2 2M10 9l2 2M13 6l2 2',
   dice: 'M5 5h14v14H5V5ZM9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01',
 } as const
 

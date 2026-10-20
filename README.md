@@ -9,6 +9,8 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 - **Profielen per persoon**: Dames, Heren en Kinderen, elk met een eigen kast, eigen outfits en een eigen stijlprofiel. Wisselen doe je bovenin, zoals tussen afdelingen in een webwinkel.
 - **Stijltest bij de start**: de AI stelt een visuele test samen die past bij de persoon (afdeling, leeftijd, functie, bedrijf en dresscode). Zonder API-sleutel krijg je een standaardtest. Uit de antwoorden komt een stijlprofiel.
 - **Een stylist die leert**: elke keuze telt mee. Duim omhoog of omlaag, opgeslagen en zelf samengestelde outfits, en wat je echt draagt. Dat gaat mee in elk advies, en het stijlprofiel kun je bijwerken met wat de stylist geleerd heeft.
+- **Maten en maatadvies**: bij de start (en later onder Profiel) vul je je afmetingen in, met uitleg hoe je meet. Bij elk kledingstuk leg je vast of de maat klein, goed of groot valt. Vóór je bestelt kies je merk en soort, of plak je de productlink: de AI zoekt de maattabel van het merk op en vergelijkt die met je afmetingen en met wat al goed past. Je krijgt een maat met uitleg, zekerheid en alternatief. Bij kinderen vraagt de app na een half jaar om opnieuw te meten.
+- **Stijltest per seizoen**: één keer per seizoen, dus maximaal vier keer per jaar, met vragen voor dat seizoen.
 - **Werk en vrije tijd**: de stylist kleedt je voor je werk volgens functie, branche en dresscode, of voor vrije tijd, een avond uit, sport, een feest of school.
 - **Kast**: kleding en schoenen met foto, merk, maat, kleur en seizoen. Zoeken, filteren en sorteren op meest of minst gedragen.
 - **Aankopen**: haalt bestellingen van **Zalando, BestSecret en Otrium** uit Gmail. Een bestelling gaat automatisch naar de juiste persoon als de mail Dames, Heren of Kinderen noemt.
@@ -70,6 +72,7 @@ React 19 + TypeScript + Vite, [Dexie](https://dexie.org) voor IndexedDB, `vite-p
 | --- | --- |
 | `src/db.ts` | Datamodel (profiel, kledingstuk, outfit, feedback, verwerkte mails) en database |
 | `src/quiz.ts` | Standaard-stijltest |
+| `src/sizes.ts` | Afmetingen per afdeling, maten per merk |
 | `src/learn.ts` | Wat de stylist geleerd heeft, als context voor elk advies |
 | `src/profile.ts` | Actief profiel en hooks per profiel |
 | `src/ai.ts` | Claude: stijltest, stijlprofiel, stylist, aankopen uit mails, inspiratie |

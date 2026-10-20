@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { COLORS, SEASONS, categoriesFor, db, newId, type Category, type Item, type Season } from '../db'
+import { COLORS, FITS, SEASONS, categoriesFor, db, newId, type Category, type Fit, type Item, type Season } from '../db'
 import { resizeImage, useObjectUrl } from '../media'
 import { useProfile } from '../profile'
 import { toggle } from '../util'
@@ -14,6 +14,7 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
   const [seasons, setSeasons] = useState<Season[]>(item?.seasons ?? [])
   const [brand, setBrand] = useState(item?.brand ?? '')
   const [size, setSize] = useState(item?.size ?? '')
+  const [fit, setFit] = useState<Fit | undefined>(item?.fit)
   const [notes, setNotes] = useState(item?.notes ?? '')
   const [photo, setPhoto] = useState<Blob | undefined>(item?.photo)
   const [busy, setBusy] = useState(false)
@@ -50,6 +51,7 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
       source: item?.source ?? 'manual',
       shop: item?.shop,
       size: size.trim() || undefined,
+      fit,
       price: item?.price,
       purchasedAt: item?.purchasedAt,
       wornCount: item?.wornCount ?? 0,
@@ -128,6 +130,18 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
           <input value={size} onChange={(e) => setSize(e.target.value)} />
         </label>
       </div>
+
+      <fieldset className="field">
+        <legend>Hoe valt de maat?</legend>
+        <div className="chips">
+          {FITS.map((f) => (
+            <Chip key={f} active={fit === f} onClick={() => setFit(fit === f ? undefined : f)}>
+              {f}
+            </Chip>
+          ))}
+        </div>
+        <small className="muted">Zo leert de app hoe elk merk valt, voor beter maatadvies.</small>
+      </fieldset>
 
       <label className="field">
         <span>Notities</span>
