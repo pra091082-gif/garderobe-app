@@ -1,4 +1,4 @@
-import type { Department, Profile, StyleProfile } from './db'
+import type { Department, Profile, Season, StyleProfile } from './db'
 
 export interface QuizOption {
   title: string
@@ -77,10 +77,34 @@ const WORK: Record<string, QuizOption[]> = {
   ],
 }
 
-/** Built-in style test, used when no Claude API key is set. */
-export function defaultQuiz(p: Profile): QuizRound[] {
+const OUTERWEAR: Record<Season, QuizOption[]> = {
+  Lente: [
+    o('Trenchcoat', 'Licht en tijdloos voor wisselend weer.', ['#c8b48a', '#f4efe6', '#1f2f55'], ['Trenchcoat', 'Lichte knit', 'Sneakers']),
+    o('Spijkerjas', 'Casual laagje over alles.', ['#3466b4', '#ffffff', '#9a9a9a'], ['Denim jacket', 'T-shirt', 'Chino']),
+    o('Lichte blazer', 'Net, maar luchtig.', ['#e9e7e2', '#1f1f1f', '#b08d57'], ['Linnen of katoenen blazer', 'Rechte broek', 'Loafers']),
+  ],
+  Zomer: [
+    o('Linnen & luchtig', 'Natuurlijke stoffen, losse vormen.', ['#f4efe6', '#d9c7a7', '#6f7d4c'], ['Linnen overhemd/blouse', 'Wijde broek', 'Sandalen']),
+    o('Sportief zomers', 'Comfortabel voor warme dagen.', ['#ffffff', '#3466b4', '#f1cf3b'], ['Polo of T-shirt', 'Short', 'Witte sneakers']),
+    o('Zomers kleurrijk', 'Prints en heldere kleuren.', ['#ec8a33', '#ec9bb5', '#4f8a4b'], ['Print', 'Lichte stof', 'Espadrilles']),
+  ],
+  Herfst: [
+    o('Laagjes & knit', 'Warm, zacht en gelaagd.', ['#7a5236', '#b08d57', '#6f7d4c'], ['Grofgebreide trui', 'Overshirt', 'Boots']),
+    o('Wollen jas', 'Klassiek en verzorgd.', ['#3a3a3a', '#1f2f55', '#d9c7a7'], ['Wollen jas', 'Coltrui', 'Leren schoenen']),
+    o('Stoer & robuust', 'Leer, suède en denim.', ['#2b2b2b', '#5c6b3a', '#7a5236'], ['Leren of suède jack', 'Donkere jeans', 'Veterboots']),
+  ],
+  Winter: [
+    o('Lange wollen jas', 'Elegant door de kou.', ['#1f1f1f', '#9a9a9a', '#f4efe6'], ['Lange jas', 'Sjaal', 'Leren laarzen']),
+    o('Puffer & sportief', 'Warm en praktisch.', ['#1f1f1f', '#5c6b3a', '#e5e5e5'], ['Pufferjas', 'Fleece', 'Gevoerde sneakers']),
+    o('Feestelijk winter', 'Fluweel, glans en diepe tinten.', ['#6b1f2f', '#1f4d3a', '#b08d57'], ['Fluweel of satijn', 'Nette jas', 'Laarsjes of nette schoenen']),
+  ],
+}
+
+/** Built-in style test for one season, used when no Claude API key is set. */
+export function defaultQuiz(p: Profile, season: Season): QuizRound[] {
   const rounds: QuizRound[] = [
-    { question: 'Welke look spreekt je het meest aan?', options: LOOKS[p.department] },
+    { question: `Welke look spreekt je deze ${season.toLowerCase()} het meest aan?`, options: LOOKS[p.department] },
+    { question: `Wat draag je het liefst als bovenlaag in de ${season.toLowerCase()}?`, options: OUTERWEAR[season] },
     { question: 'Welk kleurpalet draag je het liefst?', options: PALETTES },
     { question: 'Welke pasvorm voelt het best?', options: FITS },
     { question: 'En als tweede favoriet?', options: [...LOOKS[p.department]].reverse() },

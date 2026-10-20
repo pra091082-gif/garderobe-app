@@ -74,6 +74,13 @@ export interface StyleProfile {
   feedbackCount: number
 }
 
+/** One completed style test. The test can be taken once per season, so at most four times a year. */
+export interface QuizRecord {
+  period: string
+  season: Season
+  at: number
+}
+
 export interface Profile {
   id: string
   name: string
@@ -81,6 +88,7 @@ export interface Profile {
   age?: number
   job?: Job
   style?: StyleProfile
+  quizzes?: QuizRecord[]
   createdAt: number
 }
 
@@ -207,6 +215,15 @@ export async function deleteProfile(id: string): Promise<void> {
     await db.outfits.where('profileId').equals(id).delete()
     await db.feedback.where('profileId').equals(id).delete()
     await db.profiles.delete(id)
+  })
+}
+
+/** Stores the outcome of a style test and counts it for its season. */
+export async function saveQuizResult(profileId: string, style: StyleProfile, period: string, season: Season): Promise<void> {
+  await db.transaction('rw', db.profiles, async () => {
+    const p = await db.profiles.get(profileId)
+    if (!p) return
+    await db.profiles.update(profileId, { style, quizzes: [...(p.quizzes ?? []), { period, season, at: Date.now() }] })
   })
 }
 

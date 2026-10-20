@@ -3,9 +3,10 @@ import { useState } from 'react'
 import { exportBackup, importBackup } from '../backup'
 import { categoriesFor, db, deleteProfile } from '../db'
 import { disconnect } from '../gmail'
-import { newSignals } from '../learn'
+import { newSignals, quizDue } from '../learn'
 import { useFeedback, useProfile, useProfileItems } from '../profile'
 import { saveSettings, useSettings } from '../settings'
+import { currentSeason, nextSeasonStart } from '../util'
 import { Icon } from './icons'
 import { ProfileForm } from './ProfileForm'
 import { StyleCard, StyleQuiz } from './StyleQuiz'
@@ -26,6 +27,8 @@ export function ProfileView() {
   const mostWorn = [...items].sort((a, b) => b.wornCount - a.wornCount).filter((i) => i.wornCount > 0).slice(0, 5)
   const count = (k: string) => feedback.filter((f) => f.kind === k).length
   const fresh = newSignals(profile, feedback)
+  const due = quizDue(profile)
+  const done = profile.quizzes ?? []
 
   async function updateStyle() {
     setUpdating(true)
@@ -109,8 +112,8 @@ export function ProfileView() {
         </div>
       )}
       <div className="form-actions start">
-        <button className="btn" onClick={() => setQuiz(true)}>
-          {profile.style ? 'Stijltest opnieuw doen' : 'Stijltest doen'}
+        <button className="btn" disabled={!due} onClick={() => setQuiz(true)}>
+          {due ? `Stijltest ${currentSeason().toLowerCase()} doen` : `Stijltest ${currentSeason().toLowerCase()} gedaan`}
         </button>
         {settings.anthropicKey && profile.style && (
           <button className="btn btn-primary" disabled={updating || fresh === 0} onClick={updateStyle}>
@@ -118,6 +121,13 @@ export function ProfileView() {
           </button>
         )}
       </div>
+      <p className="small muted">
+        De stijltest doe je één keer per seizoen, dus maximaal vier keer per jaar.{' '}
+        {due
+          ? 'Die van dit seizoen staat nog open.'
+          : `De volgende kan vanaf ${nextSeasonStart().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}.`}
+        {done.length > 0 && ` Gedaan: ${done.map((q) => q.period).join(', ')}.`}
+      </p>
       {updating && <Loading>Stijlprofiel bijwerken…</Loading>}
 
       <h2 className="section-title">Wat de stylist heeft geleerd</h2>

@@ -7,7 +7,9 @@ import { ProfileView } from './components/ProfileView'
 import { PurchasesView } from './components/PurchasesView'
 import { StylistView } from './components/StylistView'
 import { Loading } from './components/ui'
+import { quizDue } from './learn'
 import { ProfileContext, setActiveProfile, useProfiles } from './profile'
+import { currentSeason } from './util'
 
 const TABS: { id: string; label: string; icon: IconName }[] = [
   { id: 'kast', label: 'Kast', icon: 'closet' },
@@ -93,6 +95,16 @@ export default function App() {
           </nav>
         </header>
         <main key={profile.id}>
+          {quizDue(profile) && tab !== 'profiel' && (
+            <a className="season-banner" href="#profiel">
+              <Icon name="sparkle" size={18} />
+              <span>
+                <strong>Nieuw seizoen: {currentSeason().toLowerCase()}.</strong> Doe de stijltest van dit seizoen, zodat de
+                stylist weet wat {profile.name} nu wil dragen.
+              </span>
+              <Icon name="arrowRight" size={18} />
+            </a>
+          )}
           {tab === 'kast' && <ClosetView />}
           {tab === 'outfits' && <OutfitsView />}
           {tab === 'stylist' && <StylistView />}

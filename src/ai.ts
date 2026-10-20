@@ -122,7 +122,8 @@ const QuizSchema = z.object({
 })
 
 /** A style test tailored to the person: department, age and work. */
-export async function generateQuiz(p: Profile): Promise<QuizRound[]> {
+export async function generateQuiz(p: Profile, season: Season, feedback: Feedback[], items: Item[]): Promise<QuizRound[]> {
+  const earlier = (p.quizzes ?? []).length > 0
   try {
     const msg = await client().beta.messages.parse({
       model: MODEL,
@@ -133,8 +134,22 @@ export async function generateQuiz(p: Profile): Promise<QuizRound[]> {
         'Je bent een ervaren personal shopper. Je maakt een korte, visuele stijltest om iemands smaak te leren kennen. ' +
         'Elke ronde heeft 3 of 4 duidelijk verschillende opties, zodat de keuze echt iets zegt. Dek samen af: algemene stijl, ' +
         'kleuren, pasvorm, vrije tijd, schoenen, en, als er werk is, wat past bij die functie, dat bedrijf en die dresscode. ' +
-        'Stem alles af op de persoon: afdeling, leeftijd en werk. Schrijf in het Nederlands, kort en uitnodigend.',
-      messages: [{ role: 'user', content: `${personContext(p)}\n\nMaak een stijltest van 7 rondes.` }],
+        'Stem alles af op de persoon: afdeling, leeftijd en werk, en op het seizoen: de test gaat over kleding voor dat ' +
+        'seizoen (stoffen, laagjes, kleuren, schoenen). Heeft de persoon de test al eerder gedaan, vraag dan vooral naar ' +
+        'wat nog onduidelijk is of kan veranderen. Schrijf in het Nederlands, kort en uitnodigend.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            personContext(p),
+            `Seizoen: ${season}.`,
+            earlier && `Wat we al weten:\n${preferenceContext(p, feedback, items)}`,
+            'Maak een stijltest van 7 rondes.',
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ],
     })
     const out = parsed(msg)
     for (const r of out.rounds) {

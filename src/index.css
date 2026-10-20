@@ -26,7 +26,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #111111;
     --surface: #181818;
     --subtle: #222120;
@@ -43,6 +43,23 @@
   }
 }
 
+/* An explicit theme choice (set by a host page) wins over the system setting. */
+:root[data-theme='dark'] {
+  --bg: #111111;
+  --surface: #181818;
+  --subtle: #222120;
+  --text: #f2f2f2;
+  --muted: #a3a3a3;
+  --border: #2e2e2e;
+  --strong: #f2f2f2;
+  --on-strong: #111111;
+  --accent: #e08a5f;
+  --accent-soft: #33241d;
+  --danger: #ef6a63;
+  --success: #6cc08b;
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -50,6 +67,9 @@
 body {
   margin: 0;
   background: var(--bg);
+  /* Set explicitly: a host page may give body its own text colour. */
+  color: var(--text);
+  font-family: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -80,6 +100,8 @@ a {
 /* ---------- App shell ---------- */
 .app {
   min-height: 100vh;
+  /* Never let one wide element make the whole page scroll sideways (clip keeps sticky headers working). */
+  overflow-x: clip;
   padding-bottom: calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom));
 }
 
@@ -709,6 +731,8 @@ main {
 
 .sheet {
   width: 100%;
+  min-width: 0;
+  color: var(--text);
   max-width: 680px;
   max-height: 94vh;
   max-height: 94dvh;
@@ -754,6 +778,7 @@ main {
 
 .sheet-body {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
 }
 
@@ -1351,4 +1376,21 @@ main {
   gap: 14px;
   padding: 24px 0;
   color: var(--muted);
+}
+
+.season-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: var(--strong);
+  color: var(--on-strong);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.season-banner span {
+  flex: 1;
+  min-width: 0;
 }

@@ -1,4 +1,5 @@
 import type { Feedback, Item, Profile } from './db'
+import { seasonPeriod } from './util'
 
 const RECENT = 15
 
@@ -58,4 +59,10 @@ export function preferenceContext(p: Profile, feedback: Feedback[], items: Item[
 /** Number of learning signals gathered since the style profile was last updated. */
 export function newSignals(p: Profile, feedback: Feedback[]): number {
   return feedback.length - (p.style?.feedbackCount ?? 0)
+}
+
+/** Whether the style test is open: once per season period. */
+export function quizDue(p: Profile, date = new Date()): boolean {
+  const period = seasonPeriod(date)
+  return !(p.quizzes ?? []).some((q) => q.period === period)
 }

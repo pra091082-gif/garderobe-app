@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { addFeedback, db, type Profile, type StyleProfile } from '../db'
+import { addFeedback, db, saveQuizResult, type Profile, type StyleProfile } from '../db'
 import { defaultQuiz, localStyleProfile, type QuizAnswer, type QuizOption, type QuizRound } from '../quiz'
 import { getSettings } from '../settings'
+import { currentSeason, seasonPeriod } from '../util'
 import { Icon } from './icons'
 import { Loading } from './ui'
 
@@ -18,6 +19,9 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
   const [error, setError] = useState<string>()
   // The profile object changes when the quiz saves its result; only a different person should restart the test.
   const profileRef = useRef(profile)
+  // The test is about the season it is taken in; the record makes sure it is taken once per season.
+  const [season] = useState(() => currentSeason())
+  const [period] = useState(() => seasonPeriod())
 
   useEffect(() => {
     let cancelled = false
@@ -26,7 +30,9 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
       if (getSettings().anthropicKey) {
         try {
           const { generateQuiz } = await import('../ai')
-          const r = await generateQuiz(profile)
+          const feedback = await db.feedback.where('profileId').equals(profile.id).toArray()
+          const items = await db.items.where('profileId').equals(profile.id).toArray()
+          const r = await generateQuiz(profile, season, feedback, items)
           if (!cancelled && r.length >= 3) {
             setRounds(r)
             setAiMade(true)
@@ -36,13 +42,13 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
           if (!cancelled) setError(`${e instanceof Error ? e.message : e} We gebruiken de standaardtest.`)
         }
       }
-      if (!cancelled) setRounds(defaultQuiz(profile))
+      if (!cancelled) setRounds(defaultQuiz(profile, season))
     }
     load()
     return () => {
       cancelled = true
     }
-  }, [profile.id])
+  }, [profile.id, season])
 
   async function finish(all: QuizAnswer[]) {
     setPhase('analyzing')
@@ -51,7 +57,7 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
         await addFeedback({
           profileId: profile.id,
           kind: 'quiz',
-          text: `${a.question} → ${a.choice.title} (${[a.choice.description, ...a.choice.pieces].join(', ')})`,
+          text: `[${period}] ${a.question} → ${a.choice.title} (${[a.choice.description, ...a.choice.pieces].join(', ')})`,
           itemIds: [],
         })
       }
@@ -68,7 +74,7 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
       }
     }
     style ??= localStyleProfile(all, feedback.length)
-    await db.profiles.update(profile.id, { style })
+    await saveQuizResult(profile.id, style, period, season)
     setPhase('done')
   }
 
@@ -92,7 +98,7 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
       <div className="page-head">
         <div>
           <span className="eyebrow">
-            Stijltest · vraag {step + 1} van {rounds.length}
+            Stijltest {period} · vraag {step + 1} van {rounds.length}
             {aiMade && ' · samengesteld door AI'}
           </span>
           <h1>{round.question}</h1>
@@ -153,8 +159,8 @@ function StyleResult({ profileId, onDone }: { profileId: string; onDone: () => v
       </div>
       <StyleCard profile={profile} />
       <p className="muted">
-        De stylist houdt rekening met dit profiel en leert van wat je kiest, afwijst en draagt. Je kunt de test altijd
-        opnieuw doen onder Profiel.
+        De stylist houdt rekening met dit profiel en leert van wat je kiest, afwijst en draagt. Elk nieuw seizoen kun je
+        de stijltest opnieuw doen.
       </p>
       <button className="btn btn-primary" onClick={onDone}>
         Naar mijn kast <Icon name="arrowRight" size={18} />
