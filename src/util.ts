@@ -1,20 +1,5 @@
 import type { Item, Season } from './db'
 
-export function categoryIcon(category: string): string {
-  return (
-    {
-      Tops: '👕',
-      Broeken: '👖',
-      Rokken: '🩱',
-      Jurken: '👗',
-      'Truien & vesten': '🧶',
-      Jassen: '🧥',
-      Schoenen: '👟',
-      Accessoires: '👜',
-    }[category] ?? '🏷️'
-  )
-}
-
 export function formatPrice(price: number): string {
   return price.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })
 }
@@ -40,7 +25,7 @@ export function suggestOutfit(items: Item[], season: Season): string[] {
   // Items without a season are treated as all-season.
   const fits = items.filter((i) => i.seasons.length === 0 || i.seasons.includes(season))
   const of = (...cats: string[]) => fits.filter((i) => cats.includes(i.category))
-  const tops = of('Tops')
+  const tops = of('Tops', 'Overhemden & blouses')
   const bottoms = of('Broeken', 'Rokken')
   const dresses = of('Jurken')
 
@@ -53,7 +38,7 @@ export function suggestOutfit(items: Item[], season: Season): string[] {
   const cold = season === 'Herfst' || season === 'Winter'
   if (cold) {
     result.push(pick(of('Jassen')))
-    if (Math.random() < 0.5) result.push(pick(of('Truien & vesten')))
+    if (Math.random() < 0.5) result.push(pick(of('Truien & vesten', 'Blazers & colberts')))
   }
   result.push(pick(of('Schoenen')))
   if (Math.random() < 0.4) result.push(pick(of('Accessoires')))

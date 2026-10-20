@@ -1,19 +1,40 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState, type FormEvent } from 'react'
-import { CATEGORIES, SEASONS, db, markWorn, newId, type Item, type Outfit, type Season } from '../db'
+import {
+  SEASONS,
+  addFeedback,
+  categoriesFor,
+  db,
+  markWorn,
+  newId,
+  occasionsFor,
+  type Item,
+  type Occasion,
+  type Outfit,
+  type Season,
+} from '../db'
+import { useProfile, useProfileItems } from '../profile'
 import { currentSeason, suggestOutfit, toggle } from '../util'
-import { Chip, Photo, Sheet } from './ui'
+import { Icon } from './icons'
+import { Chip, Photo, ProductCard, Sheet } from './ui'
 
 type Panel = { kind: 'new'; preset?: string[] } | { kind: 'detail'; id: string } | { kind: 'edit'; id: string }
 
 export function OutfitsView() {
-  const outfits = useLiveQuery(() => db.outfits.orderBy('createdAt').reverse().toArray())
-  const items = useLiveQuery(() => db.items.toArray()) ?? []
+  const profile = useProfile()
+  const outfits = useLiveQuery(
+    () => db.outfits.where('profileId').equals(profile.id).reverse().sortBy('createdAt'),
+    [profile.id],
+  )
+  const items = useProfileItems(profile.id) ?? []
   const byId = new Map(items.map((i) => [i.id, i]))
   const [panel, setPanel] = useState<Panel>()
   const [season, setSeason] = useState<Season>(currentSeason())
+  const [filter, setFilter] = useState<Occasion>()
 
   const current = panel && panel.kind !== 'new' ? outfits?.find((o) => o.id === panel.id) : undefined
+  const shown = (outfits ?? []).filter((o) => !filter || o.occasion === filter)
+  const usedOccasions = occasionsFor(profile).filter((oc) => outfits?.some((o) => o.occasion === oc))
 
   function surprise() {
     const ids = suggestOutfit(items, season)
@@ -22,10 +43,18 @@ export function OutfitsView() {
   }
 
   return (
-    <section>
-      <div className="suggest-box">
+    <section className="page">
+      <div className="page-head">
+        <div>
+          <span className="eyebrow">{profile.department}</span>
+          <h1>Outfits</h1>
+        </div>
+      </div>
+
+      <div className="panel">
         <p>
-          <strong>Wat trek ik aan?</strong> Laat de app een combinatie voorstellen.
+          <strong>Snel een idee?</strong> De app kiest een combinatie uit de kast van {profile.name}. Voor advies op
+          maat: ga naar de <a href="#stylist">Stylist</a>.
         </p>
         <div className="chips">
           {SEASONS.map((s) => (
@@ -34,22 +63,39 @@ export function OutfitsView() {
             </Chip>
           ))}
         </div>
-        <button className="btn btn-primary" onClick={surprise}>
-          🎲 Verras me
-        </button>
+        <div className="form-actions start">
+          <button className="btn btn-primary" onClick={surprise}>
+            <Icon name="dice" size={18} /> Verras me
+          </button>
+        </div>
       </div>
+
+      {usedOccasions.length > 0 && (
+        <div className="chips scroll-x">
+          <Chip active={!filter} onClick={() => setFilter(undefined)}>
+            Alle
+          </Chip>
+          {usedOccasions.map((o) => (
+            <Chip key={o} active={filter === o} onClick={() => setFilter(filter === o ? undefined : o)}>
+              {o}
+            </Chip>
+          ))}
+        </div>
+      )}
 
       {outfits && outfits.length === 0 ? (
         <div className="empty">
-          <p className="empty-icon">✨</p>
-          <p>Nog geen outfits opgeslagen.</p>
+          <Icon name="outfit" size={40} />
+          <h2>Nog geen outfits</h2>
+          <p>Stel er zelf een samen, laat je verrassen of vraag de stylist.</p>
         </div>
       ) : (
         <ul className="grid">
-          {outfits?.map((o) => (
+          {shown.map((o) => (
             <li key={o.id}>
               <button className="card" onClick={() => setPanel({ kind: 'detail', id: o.id })}>
                 <Collage items={o.itemIds.map((id) => byId.get(id)).filter((i): i is Item => !!i)} />
+                <span className="card-brand">{o.occasion ?? 'Outfit'}</span>
                 <span className="card-name">{o.name}</span>
                 <span className="card-sub">{o.itemIds.length} stuks</span>
               </button>
@@ -58,8 +104,8 @@ export function OutfitsView() {
         </ul>
       )}
 
-      <button className="fab" onClick={() => setPanel({ kind: 'new' })} aria-label="Outfit samenstellen">
-        +
+      <button className="fab" onClick={() => setPanel({ kind: 'new' })}>
+        <Icon name="plus" size={20} /> Samenstellen
       </button>
 
       {panel?.kind === 'new' && (
@@ -120,33 +166,33 @@ function OutfitDetail({
 
   return (
     <div className="detail">
+      {outfit.occasion && <span className="badge" style={{ alignSelf: 'flex-start' }}>{outfit.occasion}</span>}
       <ul className="grid grid-small">
         {items.map((i) => (
-          <li key={i.id} className="card card-static">
-            <Photo item={i} />
-            <span className="card-name">{i.name}</span>
+          <li key={i.id}>
+            <ProductCard item={i} />
           </li>
         ))}
       </ul>
       {outfit.notes && <p className="notes">{outfit.notes}</p>}
-      <div className="form-actions">
-        <button className="btn btn-danger" onClick={onDelete}>
-          Verwijderen
-        </button>
-        <button className="btn" onClick={onEdit}>
-          Bewerken
-        </button>
+      <div className="form-actions start">
         <button
           className="btn btn-primary"
           disabled={worn}
           onClick={async () => {
-            await markWorn(outfit.itemIds)
+            await markWorn(outfit.itemIds, `Outfit "${outfit.name}"${outfit.occasion ? ` (${outfit.occasion})` : ''}`)
             setWorn(true)
           }}
         >
-          {worn ? 'Genoteerd ✓' : 'Vandaag gedragen'}
+          <Icon name="check" size={18} /> {worn ? 'Genoteerd' : 'Vandaag gedragen'}
+        </button>
+        <button className="btn" onClick={onEdit}>
+          Bewerken
         </button>
       </div>
+      <button className="link-btn" onClick={onDelete}>
+        Outfit verwijderen
+      </button>
     </div>
   )
 }
@@ -162,55 +208,64 @@ function OutfitForm({
   preset?: string[]
   onDone: (saved?: Outfit) => void
 }) {
+  const profile = useProfile()
   const [name, setName] = useState(outfit?.name ?? '')
   const [notes, setNotes] = useState(outfit?.notes ?? '')
+  const [occasion, setOccasion] = useState<Occasion | undefined>(outfit?.occasion)
   const [selected, setSelected] = useState<string[]>(outfit?.itemIds ?? preset ?? [])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     const saved: Outfit = {
       id: outfit?.id ?? newId(),
+      profileId: outfit?.profileId ?? profile.id,
       name: name.trim() || `Outfit ${new Date().toLocaleDateString('nl-NL')}`,
       itemIds: selected,
+      occasion,
       notes: notes.trim(),
       createdAt: outfit?.createdAt ?? Date.now(),
     }
     await db.outfits.put(saved)
+    if (!outfit) {
+      // A self-made outfit is a strong signal of taste.
+      const names = selected.map((id) => items.find((i) => i.id === id)?.name).filter(Boolean)
+      await addFeedback({ profileId: profile.id, kind: 'saved', text: `Zelf samengesteld "${saved.name}": ${names.join(' + ')}`, itemIds: selected, occasion })
+    }
     onDone(saved)
   }
 
-  if (items.length === 0) return <p>Voeg eerst kleding toe aan je kast.</p>
+  if (items.length === 0) return <p>Voeg eerst kleding toe aan de kast.</p>
 
   return (
     <form className="form" onSubmit={onSubmit}>
       <label className="field">
         <span>Naam</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bijv. kantoor maandag" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bijv. klantafspraak maandag" />
       </label>
 
-      {CATEGORIES.map((c) => {
+      <fieldset className="field">
+        <legend>Gelegenheid</legend>
+        <div className="chips">
+          {occasionsFor(profile).map((o) => (
+            <Chip key={o} active={occasion === o} onClick={() => setOccasion(occasion === o ? undefined : o)}>
+              {o}
+            </Chip>
+          ))}
+        </div>
+      </fieldset>
+
+      {categoriesFor(profile.department).map((c) => {
         const inCat = items.filter((i) => i.category === c)
         if (inCat.length === 0) return null
         return (
           <fieldset key={c} className="field">
             <legend>{c}</legend>
             <ul className="grid grid-small">
-              {inCat.map((i) => {
-                const on = selected.includes(i.id)
-                return (
-                  <li key={i.id}>
-                    <button
-                      type="button"
-                      className={`card ${on ? 'card-selected' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => setSelected(toggle(selected, i.id))}
-                    >
-                      <Photo item={i} />
-                      <span className="card-name">{i.name}</span>
-                    </button>
-                  </li>
-                )
-              })}
+              {inCat.map((i) => (
+                <li key={i.id}>
+                  <ProductCard item={i} selected={selected.includes(i.id)} onClick={() => setSelected(toggle(selected, i.id))} />
+                </li>
+              ))}
             </ul>
           </fieldset>
         )

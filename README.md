@@ -6,13 +6,15 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 
 ## Functies
 
-- **Kast**: kledingstukken met foto, categorie (ook schoenen en accessoires), kleur, seizoen, merk en notities. Zoeken en filteren.
-- **Aankopen**: zoekt in Gmail naar bestelbevestigingen van **Zalando, BestSecret en Otrium**. Claude haalt per mail de gekochte stukken eruit (naam, merk, categorie, kleur, maat, prijs, productfoto) en jij kiest wat in je kast komt. Mails die al bekeken zijn, worden overgeslagen.
-- **Stylist**: Claude bekijkt de foto's in je kast en stelt 3 outfits voor per seizoen en gelegenheid, eventueel vooral met je online aankopen. Een outfit sla je met één tik op.
-- **Inspiratie van internet** (bij elk kledingstuk): Claude zoekt online naar looks met dat stuk, met een link naar de bron, en wijst aan welke stukken uit je eigen kast erbij passen.
-- **Outfits**: zelf samenstellen of laten voorstellen ("Verras me", werkt zonder AI).
-- **Draaggedrag**: "Vandaag gedragen" telt per stuk hoe vaak en wanneer je het droeg.
-- **Meer**: statistieken, koppelingen, backup downloaden en terugzetten (inclusief foto's).
+- **Profielen per persoon**: Dames, Heren en Kinderen, elk met een eigen kast, eigen outfits en een eigen stijlprofiel. Wisselen doe je bovenin, zoals tussen afdelingen in een webwinkel.
+- **Stijltest bij de start**: de AI stelt een visuele test samen die past bij de persoon (afdeling, leeftijd, functie, bedrijf en dresscode). Zonder API-sleutel krijg je een standaardtest. Uit de antwoorden komt een stijlprofiel.
+- **Een stylist die leert**: elke keuze telt mee. Duim omhoog of omlaag, opgeslagen en zelf samengestelde outfits, en wat je echt draagt. Dat gaat mee in elk advies, en het stijlprofiel kun je bijwerken met wat de stylist geleerd heeft.
+- **Werk en vrije tijd**: de stylist kleedt je voor je werk volgens functie, branche en dresscode, of voor vrije tijd, een avond uit, sport, een feest of school.
+- **Kast**: kleding en schoenen met foto, merk, maat, kleur en seizoen. Zoeken, filteren en sorteren op meest of minst gedragen.
+- **Aankopen**: haalt bestellingen van **Zalando, BestSecret en Otrium** uit Gmail. Een bestelling gaat automatisch naar de juiste persoon als de mail Dames, Heren of Kinderen noemt.
+- **Inspiratie van internet** bij elk stuk, met bronlink en passende stukken uit de eigen kast.
+- **Outfits**: zelf samenstellen per gelegenheid, of "Verras me" (werkt zonder AI).
+- **Profiel**: stijlprofiel, wat de stylist geleerd heeft, statistieken, koppelingen en backup.
 
 ## Eenmalig instellen
 
@@ -25,7 +27,7 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 ### 2. Claude API-sleutel (stylist, inspiratie, mails lezen)
 
 1. Maak een sleutel aan op [platform.claude.com](https://platform.claude.com/settings/keys) en zet er wat tegoed op.
-2. Plak hem in de app onder **Meer → Koppelingen**.
+2. Plak hem bij de start in de app, of later onder **Profiel → Koppelingen**.
 
 De sleutel wordt alleen op je apparaat bewaard en alleen naar Claude gestuurd. Gebruik wordt per verzoek afgerekend: het lezen van een bestelmail kost een paar cent, een stylistadvies met foto's iets meer. Zet een maandlimiet in de Claude Console als je zeker wilt zijn.
 
@@ -42,7 +44,7 @@ Google vraagt een eigen "app-registratie". Dat is eenmalig en gratis:
 4. Kies **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**.
    - Authorized JavaScript origins: `https://<gebruikersnaam>.github.io`, en voor ontwikkelen ook `http://localhost:5173`.
-5. Kopieer de **Client ID** (eindigt op `.apps.googleusercontent.com`) en plak hem in de app onder **Meer → Koppelingen**.
+5. Kopieer de **Client ID** (eindigt op `.apps.googleusercontent.com`) en plak hem in de app onder **Profiel → Koppelingen**.
    Je kunt hem ook als repository-variabele `GOOGLE_CLIENT_ID` instellen (Settings → Secrets and variables → Actions → Variables). Dan staat hij standaard ingevuld.
 
 Bij de eerste keer koppelen meldt Google dat de app niet geverifieerd is. Dat klopt, want het is je eigen app. Kies *Doorgaan*. De toegang geldt ongeveer een uur per keer; daarna log je opnieuw in via "Gmail koppelen".
@@ -66,11 +68,14 @@ React 19 + TypeScript + Vite, [Dexie](https://dexie.org) voor IndexedDB, `vite-p
 
 | Bestand | Inhoud |
 | --- | --- |
-| `src/db.ts` | Datamodel (kledingstuk, outfit, verwerkte mails) en database |
-| `src/ai.ts` | Claude: aankopen uit mails halen, stylist, inspiratie zoeken |
+| `src/db.ts` | Datamodel (profiel, kledingstuk, outfit, feedback, verwerkte mails) en database |
+| `src/quiz.ts` | Standaard-stijltest |
+| `src/learn.ts` | Wat de stylist geleerd heeft, als context voor elk advies |
+| `src/profile.ts` | Actief profiel en hooks per profiel |
+| `src/ai.ts` | Claude: stijltest, stijlprofiel, stylist, aankopen uit mails, inspiratie |
 | `src/gmail.ts` | Gmail-login, bestelmails zoeken en uitlezen |
 | `src/settings.ts` | Sleutels en instellingen per apparaat |
 | `src/util.ts` | Hulpfuncties, o.a. "Verras me" |
 | `src/backup.ts` | Export en import van backups |
 | `src/media.ts` | Foto's verkleinen, downloaden en tonen |
-| `src/components/` | Schermen: Kast, Outfits, Stylist, Aankopen, Meer |
+| `src/components/` | Schermen: start en stijltest, Kast, Outfits, Stylist, Aankopen, Profiel |

@@ -1,15 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import { CATEGORIES, COLORS, SEASONS, db, newId, type Category, type Item, type Season } from '../db'
+import { COLORS, SEASONS, categoriesFor, db, newId, type Category, type Item, type Season } from '../db'
 import { resizeImage, useObjectUrl } from '../media'
+import { useProfile } from '../profile'
 import { toggle } from '../util'
+import { Icon } from './icons'
 import { Chip, ColorDot } from './ui'
 
 export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item) => void }) {
+  const profile = useProfile()
   const [name, setName] = useState(item?.name ?? '')
   const [category, setCategory] = useState<Category>(item?.category ?? 'Tops')
   const [colors, setColors] = useState<string[]>(item?.colors ?? [])
   const [seasons, setSeasons] = useState<Season[]>(item?.seasons ?? [])
   const [brand, setBrand] = useState(item?.brand ?? '')
+  const [size, setSize] = useState(item?.size ?? '')
   const [notes, setNotes] = useState(item?.notes ?? '')
   const [photo, setPhoto] = useState<Blob | undefined>(item?.photo)
   const [busy, setBusy] = useState(false)
@@ -33,6 +37,7 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
     e.preventDefault()
     const saved: Item = {
       id: item?.id ?? newId(),
+      profileId: item?.profileId ?? profile.id,
       name: name.trim() || category,
       category,
       colors,
@@ -44,7 +49,7 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
       photoUrl: photo ? undefined : item?.photoUrl,
       source: item?.source ?? 'manual',
       shop: item?.shop,
-      size: item?.size,
+      size: size.trim() || undefined,
       price: item?.price,
       purchasedAt: item?.purchasedAt,
       wornCount: item?.wornCount ?? 0,
@@ -58,7 +63,14 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
   return (
     <form className="form" onSubmit={onSubmit}>
       <label className="photo-picker">
-        {photoUrl ? <img src={photoUrl} alt="" /> : <span>{busy ? 'Bezig…' : '📷 Foto maken of kiezen'}</span>}
+        {photoUrl ? (
+          <img src={photoUrl} alt="" />
+        ) : (
+          <>
+            <Icon name="camera" size={32} />
+            <span>{busy ? 'Bezig…' : 'Foto maken of kiezen'}</span>
+          </>
+        )}
         <input type="file" accept="image/*" hidden onChange={(e) => onPhoto(e.target.files?.[0])} />
       </label>
       {photo && (
@@ -76,7 +88,7 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
       <fieldset className="field">
         <legend>Categorie</legend>
         <div className="chips">
-          {CATEGORIES.map((c) => (
+          {categoriesFor(profile.department).map((c) => (
             <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
               {c}
             </Chip>
@@ -106,14 +118,20 @@ export function ItemForm({ item, onDone }: { item?: Item; onDone: (saved?: Item)
         </div>
       </fieldset>
 
-      <label className="field">
-        <span>Merk</span>
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} />
-      </label>
+      <div className="row-2">
+        <label className="field">
+          <span>Merk</span>
+          <input value={brand} onChange={(e) => setBrand(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Maat</span>
+          <input value={size} onChange={(e) => setSize(e.target.value)} />
+        </label>
+      </div>
 
       <label className="field">
         <span>Notities</span>
-        <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Maat, materiaal, waswijze…" />
+        <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Materiaal, pasvorm, waswijze…" />
       </label>
 
       <div className="form-actions">
