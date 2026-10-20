@@ -30,8 +30,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Photo({ item, className = '' }: { item?: Item; className?: string }) {
-  const url = useObjectUrl(item?.photo)
-  if (url) return <img className={`photo ${className}`} src={url} alt={item?.name ?? ''} loading="lazy" />
+  const url = useObjectUrl(item?.photo) ?? item?.photoUrl
+  if (url) return <img className={`photo ${className}`} src={url} alt={item?.name ?? ''} loading="lazy" referrerPolicy="no-referrer" />
   return (
     <div className={`photo photo-empty ${className}`} aria-hidden>
       {item ? categoryIcon(item.category) : '👕'}

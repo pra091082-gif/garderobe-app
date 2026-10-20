@@ -35,6 +35,7 @@ export async function importBackup(file: File): Promise<{ items: number; outfits
   const items: Item[] = await Promise.all(
     data.items.map(async ({ photo, ...rest }) => ({
       ...rest,
+      source: rest.source ?? 'manual',
       photo: photo ? await dataUrlToBlob(photo) : undefined,
     })),
   )

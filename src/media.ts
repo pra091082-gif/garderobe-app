@@ -39,3 +39,14 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return (await fetch(dataUrl)).blob()
 }
+
+/** Downloads and shrinks a shop image; undefined when the shop does not allow cross-origin downloads. */
+export async function downloadImage(url: string): Promise<Blob | undefined> {
+  try {
+    const res = await fetch(url, { mode: 'cors', referrerPolicy: 'no-referrer' })
+    if (!res.ok) return undefined
+    return await resizeImage(await res.blob())
+  } catch {
+    return undefined
+  }
+}

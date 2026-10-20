@@ -83,7 +83,7 @@ h3 {
 }
 
 .tabbar a {
-  flex: 0 1 140px;
+  flex: 0 1 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -673,4 +673,78 @@ h3 {
 
 .settings .btn-danger {
   align-self: flex-start;
+}
+
+/* Purchases, stylist, inspiration */
+.order {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.order p {
+  margin: 0;
+}
+
+.order .list li {
+  align-items: flex-start;
+}
+
+.order input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin-top: 12px;
+  accent-color: var(--accent);
+}
+
+.inspiration {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-tiny {
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+}
+
+.grid-tiny .card {
+  padding: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.form-actions.start {
+  justify-content: flex-start;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.block {
+  display: block;
+}
+
+a {
+  color: var(--accent);
+}
+
+a.btn {
+  text-decoration: none;
+  color: inherit;
 }

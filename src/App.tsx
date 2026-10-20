@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { ClosetView } from './components/ClosetView'
 import { OutfitsView } from './components/OutfitsView'
+import { PurchasesView } from './components/PurchasesView'
 import { SettingsView } from './components/SettingsView'
+import { StylistView } from './components/StylistView'
 
 const TABS = [
   { id: 'kast', label: 'Kast', icon: '👚' },
-  { id: 'outfits', label: 'Outfits', icon: '✨' },
+  { id: 'outfits', label: 'Outfits', icon: '👗' },
+  { id: 'stylist', label: 'Stylist', icon: '✨' },
+  { id: 'aankopen', label: 'Aankopen', icon: '🛍️' },
   { id: 'meer', label: 'Meer', icon: '⚙️' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
@@ -37,6 +41,8 @@ export default function App() {
       <main>
         {tab === 'kast' && <ClosetView />}
         {tab === 'outfits' && <OutfitsView />}
+        {tab === 'stylist' && <StylistView />}
+        {tab === 'aankopen' && <PurchasesView />}
         {tab === 'meer' && <SettingsView />}
       </main>
       <nav className="tabbar">

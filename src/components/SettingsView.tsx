@@ -2,12 +2,15 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { exportBackup, importBackup } from '../backup'
 import { CATEGORIES, db } from '../db'
+import { disconnect } from '../gmail'
+import { saveSettings, useSettings } from '../settings'
 import { Photo } from './ui'
 
 export function SettingsView() {
   const items = useLiveQuery(() => db.items.toArray()) ?? []
   const outfitCount = useLiveQuery(() => db.outfits.count()) ?? 0
   const [message, setMessage] = useState<string>()
+  const settings = useSettings()
 
   const neverWorn = items.filter((i) => i.wornCount === 0)
   const mostWorn = [...items].sort((a, b) => b.wornCount - a.wornCount).filter((i) => i.wornCount > 0).slice(0, 5)
@@ -86,6 +89,42 @@ export function SettingsView() {
           </ul>
         </>
       )}
+
+      <h2>Koppelingen</h2>
+      <p className="muted">
+        Deze gegevens blijven op dit apparaat. De API-sleutel wordt alleen naar Claude gestuurd, de Client-ID alleen naar
+        Google.
+      </p>
+      <label className="field">
+        <span>Claude API-sleutel (voor stylist, inspiratie en het lezen van bestelmails)</span>
+        <input
+          type="password"
+          autoComplete="off"
+          placeholder="sk-ant-…"
+          value={settings.anthropicKey}
+          onChange={(e) => saveSettings({ anthropicKey: e.target.value.trim() })}
+        />
+        <small className="muted">
+          Maak er een aan op{' '}
+          <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">
+            platform.claude.com
+          </a>
+          . Gebruik wordt per verzoek afgerekend op je eigen account.
+        </small>
+      </label>
+      <label className="field">
+        <span>Google Client-ID (voor de Gmail-koppeling)</span>
+        <input
+          autoComplete="off"
+          placeholder="…apps.googleusercontent.com"
+          value={settings.googleClientId}
+          onChange={(e) => {
+            disconnect()
+            saveSettings({ googleClientId: e.target.value.trim() })
+          }}
+        />
+        <small className="muted">Zie de README voor het eenmalig aanmaken hiervan in Google Cloud.</small>
+      </label>
 
       <h2>Backup</h2>
       <p className="muted">

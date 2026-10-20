@@ -43,6 +43,13 @@ export interface Item {
   notes: string
   favorite: boolean
   photo?: Blob
+  /** Shop image used when the photo could not be downloaded (cross-origin). */
+  photoUrl?: string
+  source: 'manual' | 'gmail'
+  shop?: string
+  size?: string
+  price?: number
+  purchasedAt?: string
   wornCount: number
   lastWorn?: number
   createdAt: number
@@ -56,18 +63,47 @@ export interface Outfit {
   createdAt: number
 }
 
+/** A Gmail message that has been looked at, so it is not imported twice. */
+export interface ImportedMail {
+  id: string
+  shop: string
+  subject: string
+  date: number
+  itemCount: number
+  importedAt: number
+}
+
 export const db = new Dexie('garderobe') as Dexie & {
   items: EntityTable<Item, 'id'>
   outfits: EntityTable<Outfit, 'id'>
+  mails: EntityTable<ImportedMail, 'id'>
 }
 
 db.version(1).stores({
   items: 'id, category, createdAt, favorite',
   outfits: 'id, createdAt, *itemIds',
 })
+db.version(2)
+  .stores({
+    items: 'id, category, createdAt, favorite, source',
+    outfits: 'id, createdAt, *itemIds',
+    mails: 'id, date',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('items')
+      .toCollection()
+      .modify((i: Item) => {
+        i.source ??= 'manual'
+      }),
+  )
 
 export function newId(): string {
   return crypto.randomUUID()
+}
+
+export async function addOutfit(name: string, itemIds: string[], notes = ''): Promise<void> {
+  await db.outfits.add({ id: newId(), name, itemIds, notes, createdAt: Date.now() })
 }
 
 export async function deleteItem(id: string): Promise<void> {

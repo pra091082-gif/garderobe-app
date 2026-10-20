@@ -1,5 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, deleteItem, markWorn, type Item } from '../db'
+import { formatPrice } from '../util'
+import { Inspiration } from './Inspiration'
 import { ColorDot, Photo } from './ui'
 
 export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () => void; onClose: () => void }) {
@@ -50,6 +52,21 @@ export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () =
             <dd>{item.brand}</dd>
           </>
         )}
+        {item.shop && (
+          <>
+            <dt>Gekocht</dt>
+            <dd>
+              {[
+                item.shop,
+                item.purchasedAt && new Date(item.purchasedAt).toLocaleDateString('nl-NL'),
+                item.size && `maat ${item.size}`,
+                item.price != null && formatPrice(item.price),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </dd>
+          </>
+        )}
         <dt>Gedragen</dt>
         <dd>
           {item.wornCount}×
@@ -63,6 +80,8 @@ export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () =
         )}
       </dl>
       {item.notes && <p className="notes">{item.notes}</p>}
+
+      <Inspiration key={item.id} item={item} />
 
       <div className="form-actions">
         <button className="btn btn-danger" onClick={onDelete}>
