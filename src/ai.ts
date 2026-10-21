@@ -267,7 +267,14 @@ const StylistSchema = z.object({
       why: z.string().describe('1-2 zinnen waarom dit werkt, en waarom het bij deze persoon past'),
     }),
   ),
-  missing: z.string().nullable().describe('Optioneel: één stuk dat de garderobe veel veelzijdiger zou maken'),
+  missing: z
+    .object({
+      piece: z.string().describe('Het stuk, bijv. "Camel wollen jas"'),
+      why: z.string().describe('Eén zin waarom dit de garderobe veelzijdiger maakt'),
+      search: z.string().describe('Zoekterm voor een webwinkel, bijv. "camel wollen jas heren"'),
+    })
+    .nullable()
+    .describe('Optioneel: één stuk dat de garderobe veel veelzijdiger zou maken'),
 })
 export type StylistResult = z.infer<typeof StylistSchema>
 
@@ -451,6 +458,91 @@ export async function sizeAdvice(
     }
     const out = parsed(msg)
     if (out.sizeChartUrl && !/^https?:\/\//.test(out.sizeChartUrl)) out.sizeChartUrl = null
+    return out
+  } catch (e) {
+    explain(e)
+  }
+}
+
+// ---------- Real products from web shops ----------
+
+const ProductSchema = z.object({
+  products: z.array(
+    z.object({
+      wish: z.number().int().describe('Nummer van de zoekvraag waar dit product bij hoort (vanaf 0)'),
+      name: z.string().describe('Productnaam zoals de winkel hem noemt'),
+      brand: z.string(),
+      shop: z.string().describe('Naam van de webwinkel'),
+      price: z.number().nullable().describe('Prijs in euro'),
+      url: z.string().describe('Exacte URL van de productpagina die je zelf hebt gezien'),
+      imageUrl: z.string().nullable().describe('Exacte URL van de hoofdfoto van het product, alleen als je die echt zag'),
+    }),
+  ),
+})
+export type Product = Omit<z.infer<typeof ProductSchema>['products'][number], 'wish'>
+
+const productCache = new Map<string, Promise<Product[][]>>()
+
+/**
+ * Looks up real, currently sold pieces in web shops for each wish (e.g. "waterdichte regenjas"),
+ * up to `perWish` each. Results are kept for the session so a re-render never pays twice.
+ */
+export function findProducts(p: Profile, wishes: string[], perWish = 2): Promise<Product[][]> {
+  const key = JSON.stringify([p.id, p.department, wishes, perWish])
+  let hit = productCache.get(key)
+  if (!hit) {
+    hit = searchProducts(p, wishes, perWish)
+    hit.catch(() => productCache.delete(key))
+    productCache.set(key, hit)
+  }
+  return hit
+}
+
+async function searchProducts(p: Profile, wishes: string[], perWish: number): Promise<Product[][]> {
+  try {
+    const ai = client()
+    const params = {
+      model: MODEL,
+      max_tokens: 16000,
+      ...FALLBACK,
+      output_config: { effort: 'medium' as const, format: betaZodOutputFormat(ProductSchema) },
+      tools: [
+        { type: 'web_search_20260209' as const, name: 'web_search' as const, max_uses: Math.min(8, wishes.length + 2) },
+        { type: 'web_fetch_20260209' as const, name: 'web_fetch' as const, max_uses: Math.min(10, wishes.length * perWish + 2) },
+      ],
+      system:
+        'Je bent een personal shopper. Zoek echte kledingstukken die nu te koop zijn bij webwinkels die naar Nederland ' +
+        'leveren (bijv. Zalando, bol.com, Wehkamp, de Bijenkorf, H&M, Zara, Mango, About You of de site van het merk). ' +
+        'Kies stukken voor de juiste afdeling en leeftijd, passend bij de stijl van de persoon. Open de productpagina met ' +
+        'web_fetch zodat je de exacte productlink, prijs en de URL van de hoofdfoto hebt. Gebruik alleen URLs die je echt ' +
+        'in de zoekresultaten of op de pagina hebt gezien en verzin nooit een product. Vind je niets betrouwbaars, laat ' +
+        'het dan weg.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            personContext(p),
+            p.style && `Stijl: ${p.style.summary}`,
+            `Zoek per vraag ${perWish === 1 ? 'één echt product' : `${perWish} echte producten`}:`,
+            wishes.map((w, i) => `${i}. ${w}`).join('\n'),
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ] as Anthropic.Beta.BetaMessageParam[],
+    }
+    let msg = await ai.beta.messages.parse(params)
+    // A long search/fetch turn can pause; resume it by sending the partial turn back.
+    for (let i = 0; i < 3 && msg.stop_reason === 'pause_turn'; i++) {
+      params.messages.push({ role: 'assistant', content: msg.content })
+      msg = await ai.beta.messages.parse(params)
+    }
+    const out: Product[][] = wishes.map(() => [])
+    for (const { wish, ...product } of parsed(msg).products) {
+      if (!out[wish] || out[wish].length >= perWish || !/^https:\/\//.test(product.url)) continue
+      if (product.imageUrl && !/^https:\/\//.test(product.imageUrl)) product.imageUrl = null
+      out[wish].push(product)
+    }
     return out
   } catch (e) {
     explain(e)

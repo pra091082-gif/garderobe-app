@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addFeedback, db, saveQuizResult, type Profile, type StyleProfile } from '../db'
 import { defaultQuiz, localStyleProfile, type QuizAnswer, type QuizOption, type QuizRound } from '../quiz'
+import type { Product } from '../ai'
 import { getSettings } from '../settings'
 import { currentSeason, seasonPeriod } from '../util'
 import { Icon } from './icons'
@@ -22,6 +23,9 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
   // The test is about the season it is taken in; the record makes sure it is taken once per season.
   const [season] = useState(() => currentSeason())
   const [period] = useState(() => seasonPeriod())
+  // Real pieces from web shops per round and option, looked up one round ahead when a Claude key is set.
+  const [examples, setExamples] = useState<Record<number, Product[][]>>({})
+  const asked = useRef(new Set<number>())
 
   useEffect(() => {
     let cancelled = false
@@ -49,6 +53,21 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
       cancelled = true
     }
   }, [profile.id, season])
+
+  useEffect(() => {
+    if (!rounds || !getSettings().anthropicKey) return
+    const profile = profileRef.current
+    for (const r of [step, step + 1]) {
+      if (r >= rounds.length || asked.current.has(r)) continue
+      asked.current.add(r)
+      const wishes = rounds[r].options.map((o) => `${o.title}: ${o.pieces.join(', ') || o.description}`)
+      import('../ai')
+        .then(({ findProducts }) => findProducts(profile, wishes, 2))
+        .then((found) => setExamples((all) => ({ ...all, [r]: found })))
+        // Without examples the test still works with colours and descriptions.
+        .catch(() => {})
+    }
+  }, [rounds, step])
 
   async function finish(all: QuizAnswer[]) {
     setPhase('analyzing')
@@ -78,8 +97,11 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
     setPhase('done')
   }
 
-  function choose(choice?: QuizOption) {
-    const next = [...answers, { question: rounds![step].question, choice }]
+  function choose(choice?: QuizOption, products?: Product[]) {
+    // Name the real pieces that were shown, so the stylist knows exactly what appealed.
+    const shown = products?.map((p) => `${p.name} van ${p.brand}`) ?? []
+    const picked = choice && shown.length ? { ...choice, pieces: [...choice.pieces, ...shown] } : choice
+    const next = [...answers, { question: rounds![step].question, choice: picked }]
     setAnswers(next)
     if (step + 1 < rounds!.length) setStep(step + 1)
     else finish(next)
@@ -107,7 +129,7 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
       {error && <p className="muted small">{error}</p>}
       <div className="quiz-options">
         {round.options.map((o, i) => (
-          <MoodCard key={`${step}-${i}`} option={o} onClick={() => choose(o)} />
+          <MoodCard key={`${step}-${i}`} option={o} products={examples[step]?.[i]} onClick={() => choose(o, examples[step]?.[i])} />
         ))}
       </div>
       <div className="form-actions start">
@@ -119,11 +141,30 @@ export function StyleQuiz({ profile, onDone }: { profile: Profile; onDone: () =>
   )
 }
 
-export function MoodCard({ option, onClick, active }: { option: QuizOption; onClick?: () => void; active?: boolean }) {
+export function MoodCard({
+  option,
+  products,
+  onClick,
+  active,
+}: {
+  option: QuizOption
+  /** Real pieces from web shops that show the look; replaces the big colour block when they have photos. */
+  products?: Product[]
+  onClick?: () => void
+  active?: boolean
+}) {
   const palette = option.palette.length ? option.palette : ['#e6e6e6']
+  const photos = (products ?? []).filter((p) => p.imageUrl)
   return (
     <button type="button" className={`mood ${active ? 'active' : ''}`} onClick={onClick}>
-      <span className="mood-swatch" aria-hidden>
+      {photos.length > 0 && (
+        <span className="mood-photos">
+          {photos.map((p) => (
+            <img key={p.url} src={p.imageUrl!} alt={`${p.brand} ${p.name}`} loading="lazy" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.hidden = true)} />
+          ))}
+        </span>
+      )}
+      <span className={`mood-swatch ${photos.length ? 'thin' : ''}`} aria-hidden>
         {palette.map((c, i) => (
           <span key={i} style={{ background: c }} />
         ))}
@@ -137,6 +178,11 @@ export function MoodCard({ option, onClick, active }: { option: QuizOption; onCl
               <li key={p}>{p}</li>
             ))}
           </ul>
+        )}
+        {photos.length > 0 && (
+          <span className="small muted">
+            Echte stukken: {photos.map((p) => `${p.brand} (${p.shop})`).join(', ')}
+          </span>
         )}
       </span>
     </button>

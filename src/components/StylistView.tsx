@@ -7,6 +7,8 @@ import { useSettings } from '../settings'
 import { currentSeason } from '../util'
 import { describeWeather, useWeather } from '../weather'
 import { Icon } from './icons'
+import { useRealProducts } from '../products'
+import { ProductTile } from './RealProducts'
 import { Chip, Loading, ProductCard } from './ui'
 
 type Vote = 'like' | 'dislike'
@@ -202,11 +204,32 @@ export function StylistView() {
           ))}
         </div>
       )}
-      {result?.missing && (
-        <p className="message">
-          <strong>Tip van de stylist:</strong> {result.missing}
-        </p>
-      )}
+      {result?.missing && <MissingPiece piece={result.missing.piece} why={result.missing.why} search={result.missing.search} />}
     </section>
+  )
+}
+
+/** The stylist's tip for one missing piece, shown with real pieces from web shops. */
+function MissingPiece({ piece, why, search }: { piece: string; why: string; search: string }) {
+  const profile = useProfile()
+  const { products, error } = useRealProducts(profile, [search], true, 3)
+  return (
+    <div className="panel">
+      <p>
+        <strong>Tip van de stylist: {piece}.</strong> {why}
+      </p>
+      {!products && !error && <Loading>Echte stukken zoeken in webwinkels…</Loading>}
+      {error && <p className="small muted">Geen winkelstukken gevonden ({error}).</p>}
+      {products && products[0].length === 0 && <p className="small muted">Geen passend stuk gevonden in webwinkels.</p>}
+      {products && products[0].length > 0 && (
+        <ul className="grid grid-small grid-today">
+          {products[0].map((p) => (
+            <li key={p.url}>
+              <ProductTile product={p} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
