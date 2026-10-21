@@ -275,7 +275,7 @@ export async function styleOutfits(
   p: Profile,
   items: Item[],
   feedback: Feedback[],
-  opts: { season: Season; occasion: Occasion; wish: string },
+  opts: { season: Season; occasion: Occasion; wish: string; weather?: string },
 ): Promise<StylistResult> {
   if (items.length < 2) throw new AiError('Voeg eerst minstens twee kledingstukken toe.')
   const work =
@@ -304,6 +304,7 @@ export async function styleOutfits(
               type: 'text',
               text: [
                 `Stel 3 outfits voor. Seizoen: ${opts.season}. Gelegenheid: ${opts.occasion}.`,
+                opts.weather && `Het weer vandaag: ${opts.weather}. Kleed de persoon daarop (jas, laagjes, regen).`,
                 work,
                 opts.wish && `Extra wens: ${opts.wish}`,
               ]
