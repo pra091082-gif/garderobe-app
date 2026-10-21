@@ -1448,3 +1448,47 @@ main {
 .table-wrap {
   overflow-x: auto;
 }
+
+/* ---------- Today: weather ---------- */
+.weather-now {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.weather-temp {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-now .link-btn {
+  margin-top: 4px;
+  padding: 0;
+}
+
+.weather-tips {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.92rem;
+}
+
+.missing {
+  display: grid;
+  gap: 8px;
+}
+
+.missing a.chip {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Three pieces per row on a phone, so a whole outfit fits on about one screen. */
+.grid-today {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+  gap: 10px !important;
+}

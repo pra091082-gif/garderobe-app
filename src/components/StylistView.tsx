@@ -5,6 +5,7 @@ import { newSignals } from '../learn'
 import { useFeedback, useProfile, useProfileItems } from '../profile'
 import { useSettings } from '../settings'
 import { currentSeason } from '../util'
+import { describeWeather, useWeather } from '../weather'
 import { Icon } from './icons'
 import { Chip, Loading, ProductCard } from './ui'
 
@@ -18,6 +19,8 @@ export function StylistView() {
   const byId = new Map(items.map((i) => [i.id, i]))
   const occasions = occasionsFor(profile)
   const [season, setSeason] = useState<Season>(currentSeason())
+  const { weather } = useWeather()
+  const [useToday, setUseToday] = useState(true)
   const [occasion, setOccasion] = useState<Occasion>(occasions.includes('Werk') ? 'Werk' : 'Vrije tijd')
   const [wish, setWish] = useState('')
   const [onlyOnline, setOnlyOnline] = useState(false)
@@ -42,7 +45,12 @@ export function StylistView() {
         ? items.filter((i) => i.source === 'gmail' || i.category === 'Schoenen' || i.category === 'Accessoires')
         : items
       const { styleOutfits } = await import('../ai')
-      setResult(await styleOutfits(profile, pool, feedback, { season, occasion, wish: wish.trim() }))
+      setResult(await styleOutfits(profile, pool, feedback, {
+          season,
+          occasion,
+          wish: wish.trim(),
+          weather: useToday && weather ? describeWeather(weather) : undefined,
+        }))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -121,6 +129,12 @@ export function StylistView() {
               placeholder="Bijv. presentatie voor een klant, iets met mijn nieuwe sneakers"
             />
           </label>
+          {weather && (
+            <label className="check">
+              <input type="checkbox" checked={useToday} onChange={(e) => setUseToday(e.target.checked)} />
+              Rekening houden met het weer van vandaag ({weather.feelsLike}°, {weather.rainChance}% kans op regen)
+            </label>
+          )}
           {onlineCount > 0 && (
             <label className="check">
               <input type="checkbox" checked={onlyOnline} onChange={(e) => setOnlyOnline(e.target.checked)} />

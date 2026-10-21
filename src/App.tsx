@@ -6,12 +6,14 @@ import { OutfitsView } from './components/OutfitsView'
 import { ProfileView } from './components/ProfileView'
 import { PurchasesView } from './components/PurchasesView'
 import { StylistView } from './components/StylistView'
+import { TodayView } from './components/TodayView'
 import { Loading } from './components/ui'
 import { quizDue } from './learn'
 import { ProfileContext, setActiveProfile, useProfiles } from './profile'
 import { currentSeason } from './util'
 
 const TABS: { id: string; label: string; icon: IconName }[] = [
+  { id: 'vandaag', label: 'Vandaag', icon: 'sun' },
   { id: 'kast', label: 'Kast', icon: 'closet' },
   { id: 'outfits', label: 'Outfits', icon: 'outfit' },
   { id: 'stylist', label: 'Stylist', icon: 'sparkle' },
@@ -21,7 +23,7 @@ const TABS: { id: string; label: string; icon: IconName }[] = [
 
 function tabFromHash(): string {
   const h = location.hash.slice(1)
-  return TABS.some((t) => t.id === h) ? h : 'kast'
+  return TABS.some((t) => t.id === h) ? h : 'vandaag'
 }
 
 export default function App() {
@@ -105,6 +107,7 @@ export default function App() {
               <Icon name="arrowRight" size={18} />
             </a>
           )}
+          {tab === 'vandaag' && <TodayView />}
           {tab === 'kast' && <ClosetView />}
           {tab === 'outfits' && <OutfitsView />}
           {tab === 'stylist' && <StylistView />}
