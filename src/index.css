@@ -1492,3 +1492,34 @@ main {
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
   gap: 10px !important;
 }
+
+/* ---------- Real products from web shops ---------- */
+.product-tile {
+  text-decoration: none;
+  color: inherit;
+}
+
+.product-tile .card-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mood-photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.mood-photos img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
+  background: var(--subtle);
+}
+
+.mood-swatch.thin {
+  height: 10px;
+}

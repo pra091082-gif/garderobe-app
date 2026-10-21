@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { addFeedback, addOutfit, markWorn, occasionsFor, type Occasion } from '../db'
 import { useProfile, useProfileItems } from '../profile'
+import { useSettings } from '../settings'
 import { SHOPS, defaultOccasion, findMissing, needsFor, suggestToday } from '../today'
 import { findPlace, useWeather, weatherLabel } from '../weather'
 import { Icon } from './icons'
+import { useRealProducts } from '../products'
+import { ProductTile } from './RealProducts'
 import { Chip, Loading, ProductCard } from './ui'
 
 export function TodayView() {
@@ -14,11 +17,14 @@ export function TodayView() {
   const [worn, setWorn] = useState<number>()
   const [saved, setSaved] = useState<number[]>([])
   const [changingPlace, setChangingPlace] = useState(false)
+  const { anthropicKey } = useSettings()
+  const [showReal, setShowReal] = useState(false)
 
   const [date] = useState(() => new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }))
   const needs = weather && needsFor(weather, occasion)
   const suggestions = needs && items ? suggestToday(items, needs) : []
   const missing = needs && items ? findMissing(items, needs, profile.department) : []
+  const real = useRealProducts(profile, missing.map((m) => m.query), showReal)
 
   function pickOccasion(o: Occasion) {
     setOccasion(o)
@@ -151,9 +157,18 @@ export function TodayView() {
           <h2 className="section-title" style={{ marginTop: 0 }}>
             Wat er nog ontbreekt
           </h2>
-          {missing.map((m) => (
+          {missing.map((m, i) => (
             <div key={m.query} className="missing">
               <p>{m.reason}</p>
+              {real.products && real.products[i].length > 0 && (
+                <ul className="grid grid-small grid-today">
+                  {real.products[i].map((p) => (
+                    <li key={p.url}>
+                      <ProductTile product={p} />
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="chips">
                 {SHOPS.map((shop) => (
                   <a key={shop.name} className="chip" href={shop.url(m.query)} target="_blank" rel="noopener noreferrer">
@@ -163,6 +178,13 @@ export function TodayView() {
               </div>
             </div>
           ))}
+          {anthropicKey && !showReal && (
+            <button className="btn" onClick={() => setShowReal(true)}>
+              <Icon name="search" size={18} /> Echte stukken uit webwinkels tonen
+            </button>
+          )}
+          {showReal && !real.products && !real.error && <Loading>Echte stukken zoeken in webwinkels…</Loading>}
+          {real.error && <p className="error">{real.error}</p>}
         </div>
       )}
 

@@ -7,6 +7,7 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 ## Functies
 
 - **Vandaag**: het openingsscherm. Haalt het weer van vandaag op voor je locatie (of een plaats die je kiest) via [Open-Meteo](https://open-meteo.com), gratis en zonder sleutel. Je krijgt tot drie outfits uit de eigen kast die passen bij temperatuur, regen, wind, seizoen en de dag (doordeweeks werk, in het weekend vrije tijd). Werkt zonder AI. Ontbreekt er iets voor dit weer, zoals een regenjas, dan krijg je zoeklinks naar Zalando, bol.com en Google Shopping. De stylist houdt ook rekening met het weer.
+- **Echte kledingstukken bij AI-advies**: met een Claude-sleutel zoekt de app echte stukken op die nu te koop zijn (foto, merk, prijs en link naar de winkel). Dat gebeurt bij de stijltest (elke look met echte voorbeelden), bij de tip van de stylist en, op verzoek, bij wat er op Vandaag ontbreekt.
 - **Profielen per persoon**: Dames, Heren en Kinderen, elk met een eigen kast, eigen outfits en een eigen stijlprofiel. Wisselen doe je bovenin, zoals tussen afdelingen in een webwinkel.
 - **Stijltest bij de start**: de AI stelt een visuele test samen die past bij de persoon (afdeling, leeftijd, functie, bedrijf en dresscode). Zonder API-sleutel krijg je een standaardtest. Uit de antwoorden komt een stijlprofiel.
 - **Een stylist die leert**: elke keuze telt mee. Duim omhoog of omlaag, opgeslagen en zelf samengestelde outfits, en wat je echt draagt. Dat gaat mee in elk advies, en het stijlprofiel kun je bijwerken met wat de stylist geleerd heeft.
