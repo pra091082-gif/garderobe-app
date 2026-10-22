@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react'
-import { COLORS, type Item } from '../db'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { COLORS, boughtOnline, type Item } from '../db'
 import { useObjectUrl } from '../media'
 import { Icon } from './icons'
 
@@ -57,7 +57,7 @@ export function ProductCard({
   const content = (
     <>
       <Photo item={item} />
-      {item.source === 'gmail' && <span className="tag">{item.shop ?? 'Online'}</span>}
+      {boughtOnline(item) && <span className="tag">{item.shop ?? 'Online'}</span>}
       {item.favorite && (
         <span className="card-fav on" aria-label="Favoriet">
           <Icon name="heart" size={18} />
@@ -118,6 +118,73 @@ export function Loading({ children }: { children: ReactNode }) {
     <div className="loading" role="status">
       <div className="spinner" />
       {children}
+    </div>
+  )
+}
+
+/**
+ * "Take photo" and "From gallery" buttons. The inputs are visually hidden instead of display:none and opened
+ * with click(), which works on every phone browser; `capture` opens the back camera directly.
+ */
+export function PhotoButtons({
+  onFiles,
+  multiple,
+  disabled,
+  replace,
+  camera: withCamera = true,
+  galleryLabel = 'Uit fotogalerij',
+}: {
+  onFiles: (files: File[]) => void
+  multiple?: boolean
+  disabled?: boolean
+  replace?: boolean
+  /** false for screenshots, which come from the gallery only. */
+  camera?: boolean
+  galleryLabel?: string
+}) {
+  const camera = useRef<HTMLInputElement>(null)
+  const gallery = useRef<HTMLInputElement>(null)
+  const pick = (input: HTMLInputElement) => {
+    const files = [...(input.files ?? [])]
+    // Reset so choosing the same photo again still fires a change.
+    input.value = ''
+    if (files.length) onFiles(files)
+  }
+  return (
+    <div className={`photo-buttons ${withCamera ? '' : 'single'}`}>
+      {withCamera && (
+        <button type="button" className="btn btn-primary" disabled={disabled} onClick={() => camera.current?.click()}>
+          <Icon name="camera" size={18} /> {replace ? 'Nieuwe foto' : 'Foto maken'}
+        </button>
+      )}
+      <button
+        type="button"
+        className={`btn ${withCamera ? '' : 'btn-primary'}`}
+        disabled={disabled}
+        onClick={() => gallery.current?.click()}
+      >
+        <Icon name="image" size={18} /> {galleryLabel}
+      </button>
+      <input
+        ref={camera}
+        className="file-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => pick(e.currentTarget)}
+      />
+      <input
+        ref={gallery}
+        className="file-input"
+        type="file"
+        accept="image/*"
+        multiple={multiple}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => pick(e.currentTarget)}
+      />
     </div>
   )
 }

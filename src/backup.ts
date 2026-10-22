@@ -5,7 +5,7 @@ interface BackupFile {
   app: 'garderobe'
   version: 1 | 2
   exportedAt: string
-  items: (Omit<Item, 'photo'> & { photo?: string })[]
+  items: (Omit<Item, 'photo' | 'ownPhoto'> & { photo?: string; ownPhoto?: string })[]
   outfits: Outfit[]
   profiles?: Profile[]
   feedback?: Feedback[]
@@ -18,9 +18,10 @@ export async function exportBackup(): Promise<Blob> {
     version: 2,
     exportedAt: new Date().toISOString(),
     items: await Promise.all(
-      items.map(async ({ photo, ...rest }) => ({
+      items.map(async ({ photo, ownPhoto, ...rest }) => ({
         ...rest,
         photo: photo ? await blobToDataUrl(photo) : undefined,
+        ownPhoto: ownPhoto ? await blobToDataUrl(ownPhoto) : undefined,
       })),
     ),
     outfits: await db.outfits.toArray(),
@@ -42,11 +43,12 @@ export async function importBackup(file: File): Promise<{ profiles: number; item
   const profiles = data.profiles ?? []
   const fallback = profiles[0]?.id ?? (await db.profiles.orderBy('createdAt').first())?.id ?? ''
   const items: Item[] = await Promise.all(
-    data.items.map(async ({ photo, ...rest }) => ({
+    data.items.map(async ({ photo, ownPhoto, ...rest }) => ({
       ...rest,
       profileId: rest.profileId || fallback,
       source: rest.source ?? 'manual',
       photo: photo ? await dataUrlToBlob(photo) : undefined,
+      ownPhoto: ownPhoto ? await dataUrlToBlob(ownPhoto) : undefined,
     })),
   )
   const outfits = (data.outfits ?? []).map((o) => ({ ...o, profileId: o.profileId || fallback }))

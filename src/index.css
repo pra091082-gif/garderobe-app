@@ -853,7 +853,91 @@ main {
   color: var(--muted);
   font-weight: 600;
   overflow: hidden;
+}
+
+.shop-photo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-photo li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shop-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-large {
+  min-height: 56px;
+  font-size: 1.05rem;
+}
+
+.more summary {
   cursor: pointer;
+  font-weight: 700;
+}
+
+.more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel-highlight {
+  outline: 2px solid var(--strong);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.link-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.link-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.batch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 0;
+}
+
+.photo-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.photo-buttons.single {
+  grid-template-columns: 1fr;
+}
+
+.photo-buttons .btn {
+  padding-inline: 10px;
+}
+
+/* Hidden file input that can still be opened with click() on every phone browser. */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .photo-picker img {

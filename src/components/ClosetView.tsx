@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { COLORS, SEASONS, categoriesFor, type Category, type Season } from '../db'
+import { COLORS, SEASONS, boughtOnline, categoriesFor, type Category, type Season } from '../db'
 import { useProfile, useProfileItems } from '../profile'
 import { Icon } from './icons'
 import { ItemDetail } from './ItemDetail'
 import { ItemForm } from './ItemForm'
+import { PhotoBatch } from './PhotoBatch'
 import { Chip, ColorDot, ProductCard, Sheet } from './ui'
 
-type Panel = { kind: 'new' } | { kind: 'detail'; id: string } | { kind: 'edit'; id: string }
+type Panel = { kind: 'new' } | { kind: 'batch' } | { kind: 'detail'; id: string } | { kind: 'edit'; id: string }
 type Sort = 'new' | 'worn' | 'least'
 
 export function ClosetView() {
@@ -29,7 +30,7 @@ export function ClosetView() {
         (!season || i.seasons.includes(season)) &&
         (!color || i.colors.includes(color)) &&
         (!favorites || i.favorite) &&
-        (!online || i.source === 'gmail') &&
+        (!online || boughtOnline(i)) &&
         (!q || `${i.name} ${i.brand} ${i.notes} ${i.shop ?? ''}`.toLowerCase().includes(q)),
     )
     const by: Record<Sort, (a: (typeof list)[0], b: (typeof list)[0]) => number> = {
@@ -40,7 +41,7 @@ export function ClosetView() {
     return list.sort(by[sort])
   }, [items, query, category, season, color, favorites, online, sort])
 
-  const current = panel && panel.kind !== 'new' ? items?.find((i) => i.id === panel.id) : undefined
+  const current = panel && 'id' in panel ? items?.find((i) => i.id === panel.id) : undefined
   const hasFilters = !!(category || season || color || favorites || online || query)
   const usedCategories = categoriesFor(profile.department).filter((c) => items?.some((i) => i.category === c))
 
@@ -70,6 +71,9 @@ export function ClosetView() {
           <div className="form-actions" style={{ justifyContent: 'center' }}>
             <button className="btn btn-primary" onClick={() => setPanel({ kind: 'new' })}>
               <Icon name="camera" size={18} /> Kledingstuk toevoegen
+            </button>
+            <button className="btn" onClick={() => setPanel({ kind: 'batch' })}>
+              <Icon name="image" size={18} /> Meerdere foto's
             </button>
             <a className="btn" href="#aankopen">
               <Icon name="bag" size={18} /> Online aankopen
@@ -133,7 +137,15 @@ export function ClosetView() {
 
       {panel?.kind === 'new' && (
         <Sheet title="Nieuw kledingstuk" onClose={() => setPanel(undefined)}>
+          <button type="button" className="link-btn batch-link" onClick={() => setPanel({ kind: 'batch' })}>
+            <Icon name="image" size={16} /> Meerdere stukken tegelijk toevoegen
+          </button>
           <ItemForm onDone={(saved) => setPanel(saved ? { kind: 'detail', id: saved.id } : undefined)} />
+        </Sheet>
+      )}
+      {panel?.kind === 'batch' && (
+        <Sheet title="Foto's toevoegen" onClose={() => setPanel(undefined)}>
+          <PhotoBatch onOpen={(id) => setPanel({ kind: 'detail', id })} onDone={() => setPanel(undefined)} />
         </Sheet>
       )}
       {panel?.kind === 'detail' && current && (

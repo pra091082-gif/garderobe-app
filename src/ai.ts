@@ -1,9 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import { z } from 'zod'
-import { CATEGORIES, COLORS, DEPARTMENTS, type Feedback, type Item, type Occasion, type Profile, type Season, type StyleProfile } from './db'
+import { CATEGORIES, COLORS, DEPARTMENTS, SEASONS, type Department, type Feedback, type Item, type Occasion, type Profile, type Season, type StyleProfile } from './db'
 import { personContext, preferenceContext } from './learn'
-import { blobToDataUrl, resizeImage } from './media'
+import { blobToDataUrl, imageSize, resizeImage, type Box } from './media'
 import type { QuizAnswer, QuizRound } from './quiz'
 import { getSettings } from './settings'
 
@@ -96,6 +96,253 @@ export async function extractPurchases(email: {
       if (item.imageUrl && !email.imageUrls.includes(item.imageUrl)) item.imageUrl = null
     }
     return out
+  } catch (e) {
+    explain(e)
+  }
+}
+
+// ---------- Recognising a piece from a photo ----------
+
+const ItemGuessSchema = z.object({
+  name: z.string().describe('Korte Nederlandse omschrijving, bijv. "Navy wollen colbert"'),
+  brand: z.string().describe('Alleen als het merk zichtbaar is (label, logo), anders leeg'),
+  category: Category,
+  colors: z.array(Color),
+  seasons: z.array(z.enum(SEASONS)).describe('Seizoenen waarin je dit stuk draagt'),
+})
+export type ItemGuess = z.infer<typeof ItemGuessSchema>
+
+async function imageBlock(photo: Blob, max: number): Promise<Anthropic.Beta.BetaImageBlockParam> {
+  const small = await resizeImage(photo, max)
+  const data = (await blobToDataUrl(small)).split(',')[1]
+  return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }
+}
+
+/** Name, category, colours and seasons of the piece in a photo. */
+export async function recognizeItem(photo: Blob, department: Department): Promise<ItemGuess> {
+  try {
+    const msg = await client().beta.messages.parse({
+      model: MODEL,
+      max_tokens: 2000,
+      ...FALLBACK,
+      output_config: { effort: 'low', format: betaZodOutputFormat(ItemGuessSchema) },
+      system:
+        'Je herkent het kledingstuk, de schoenen of het accessoire op een foto voor een digitale kledingkast. ' +
+        'Beschrijf het hoofdstuk op de foto, niet de achtergrond. Verzin geen merk. Antwoord in het Nederlands.',
+      messages: [
+        {
+          role: 'user',
+          content: [await imageBlock(photo, 640), { type: 'text', text: `Afdeling: ${department}` }],
+        },
+      ],
+    })
+    return parsed(msg)
+  } catch (e) {
+    explain(e)
+  }
+}
+
+// ---------- Orders from screenshots and product links ----------
+
+const ShopItem = z.object({
+  name: z.string().describe('Korte Nederlandse omschrijving, bijv. "Witte leren sneakers"'),
+  brand: z.string(),
+  category: Category,
+  department: z.enum(DEPARTMENTS).nullable().describe('Dames, Heren of Kinderen als dat blijkt'),
+  colors: z.array(Color),
+  size: z.string().nullable(),
+  price: z.number().nullable().describe('Prijs in euro'),
+  isClothing: z.boolean().describe('false voor cadeaubonnen, verzendkosten, cosmetica enz.'),
+})
+
+const ScreenshotSchema = z.object({
+  shop: z.string().nullable().describe('Naam van de winkel, bijv. Zalando of BestSecret'),
+  orderDate: z.string().nullable().describe('YYYY-MM-DD'),
+  items: z.array(
+    ShopItem.extend({
+      returned: z.boolean().describe('true als het stuk geretourneerd of geannuleerd is'),
+      photo: z
+        .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
+        .nullable()
+        .describe('Kader om de productfoto van dit stuk, in pixels van de screenshot'),
+    }),
+  ),
+})
+
+export interface ShopPurchase extends z.infer<typeof ShopItem> {
+  /** Product photo cut out of the screenshot. */
+  photo?: Blob
+  imageUrl?: string
+}
+
+export interface ShopOrder {
+  shop: string | null
+  orderDate: string | null
+  items: ShopPurchase[]
+}
+
+/** Sends the screenshot at most this size; boxes come back in these pixels. */
+const SHOT_MAX = 1500
+
+/** Reads a screenshot of an order or the "my orders" page of a shop app and cuts out the product photos. */
+export async function extractFromScreenshot(shot: Blob): Promise<ShopOrder> {
+  try {
+    const small = await resizeImage(shot, SHOT_MAX)
+    const { width, height } = await imageSize(small)
+    const data = (await blobToDataUrl(small)).split(',')[1]
+    const msg = await client().beta.messages.parse({
+      model: MODEL,
+      max_tokens: 8000,
+      ...FALLBACK,
+      output_config: { effort: 'medium', format: betaZodOutputFormat(ScreenshotSchema) },
+      system:
+        'Je leest een screenshot van een webwinkel of winkel-app (bijv. "Mijn bestellingen" bij Zalando of BestSecret, ' +
+        'een bestelling of een bestelbevestiging) en haalt de gekochte kleding, schoenen en accessoires eruit. ' +
+        'Neem alleen stukken op die echt op de screenshot staan, ook als ze maar half zichtbaar zijn. ' +
+        'Geef per stuk het kader om de productfoto, zo strak mogelijk om de foto zelf, zonder tekst eromheen.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } },
+            { type: 'text', text: `De screenshot is ${width} × ${height} pixels.` },
+          ],
+        },
+      ],
+    })
+    const out = parsed(msg)
+    const items: ShopPurchase[] = []
+    for (const { photo: box, returned, ...item } of out.items) {
+      if (returned) continue
+      items.push({ ...item, photo: box ? await cropPhoto(small, box, width, height) : undefined })
+    }
+    return { shop: out.shop, orderDate: out.orderDate, items }
+  } catch (e) {
+    explain(e)
+  }
+}
+
+async function cropPhoto(shot: Blob, box: Box, width: number, height: number): Promise<Blob | undefined> {
+  const x = Math.max(0, Math.round(box.x))
+  const y = Math.max(0, Math.round(box.y))
+  const w = Math.min(width - x, Math.round(box.width))
+  const h = Math.min(height - y, Math.round(box.height))
+  // A box this small is not a product photo.
+  if (w < 24 || h < 24) return undefined
+  try {
+    return await resizeImage(shot, 900, { x, y, width: w, height: h })
+  } catch {
+    return undefined
+  }
+}
+
+const LinkSchema = z.object({
+  found: z.boolean().describe('false als de pagina niet te lezen was of geen product toont'),
+  shop: z.string().nullable(),
+  item: ShopItem.extend({
+    imageUrl: z.string().nullable().describe('URL van de productfoto zoals op de pagina gezien'),
+  }).nullable(),
+})
+
+/** Reads a product page (e.g. a Zalando link) and returns the piece with its shop photo. */
+export async function extractFromLink(url: string): Promise<ShopOrder> {
+  try {
+    const ai = client()
+    const params = {
+      model: MODEL,
+      max_tokens: 8000,
+      ...FALLBACK,
+      output_config: { effort: 'low' as const, format: betaZodOutputFormat(LinkSchema) },
+      tools: [{ type: 'web_fetch_20260209' as const, name: 'web_fetch' as const, max_uses: 2 }],
+      system:
+        'Je opent een productpagina van een webwinkel en beschrijft het kledingstuk voor een digitale kledingkast: ' +
+        'naam, merk, soort, kleur en prijs, en de URL van de hoofdproductfoto. Verzin niets; kun je de pagina niet ' +
+        'lezen, zet found op false. Antwoord in het Nederlands.',
+      messages: [{ role: 'user', content: `Productpagina: ${url}` }] as Anthropic.Beta.BetaMessageParam[],
+    }
+    let msg = await ai.beta.messages.parse(params)
+    for (let i = 0; i < 3 && msg.stop_reason === 'pause_turn'; i++) {
+      params.messages.push({ role: 'assistant', content: msg.content })
+      msg = await ai.beta.messages.parse(params)
+    }
+    const out = parsed(msg)
+    if (!out.found || !out.item)
+      throw new AiError('Deze pagina kon niet worden gelezen. Bij BestSecret moet je ingelogd zijn: maak dan een screenshot.')
+    const { imageUrl, ...item } = out.item
+    return {
+      shop: out.shop,
+      orderDate: null,
+      items: [{ ...item, imageUrl: imageUrl && /^https?:\/\//.test(imageUrl) ? imageUrl : undefined }],
+    }
+  } catch (e) {
+    explain(e)
+  }
+}
+
+// ---------- Shop photo of a piece ----------
+
+const ShopPhotoSchema = z.object({
+  matches: z.array(
+    z.object({
+      name: z.string().describe('Productnaam zoals de winkel hem noemt'),
+      shop: z.string().describe('Naam van de webwinkel of het merk'),
+      url: z.string().describe('Exacte URL van de productpagina die je zelf hebt gezien'),
+      imageUrl: z.string().describe('Exacte URL van de productfoto (packshot), zoals op de pagina gezien'),
+      match: z.enum(['zelfde stuk', 'lijkt erop']).describe('"zelfde stuk" alleen als merk, model en kleur kloppen'),
+    }),
+  ),
+})
+export type ShopPhoto = z.infer<typeof ShopPhotoSchema>['matches'][number]
+
+/** Looks up the shop's own product photo of a piece (same brand, model and colour), best match first. */
+export async function findShopPhotos(item: Item): Promise<ShopPhoto[]> {
+  try {
+    const img = await thumbnail(item)
+    const ai = client()
+    const params = {
+      model: MODEL,
+      max_tokens: 16000,
+      ...FALLBACK,
+      output_config: { effort: 'medium' as const, format: betaZodOutputFormat(ShopPhotoSchema) },
+      tools: [
+        { type: 'web_search_20260209' as const, name: 'web_search' as const, max_uses: 5 },
+        { type: 'web_fetch_20260209' as const, name: 'web_fetch' as const, max_uses: 6 },
+      ],
+      system:
+        'Je zoekt de officiële productfoto van een kledingstuk dat iemand al heeft, voor een digitale kledingkast: ' +
+        'een nette packshot of foto op een model van de webwinkel of het merk (bijv. Zalando, BestSecret, de site van het ' +
+        'merk). Zoek op merk, model en kleur, open de productpagina met web_fetch en neem de URL van de hoofdfoto over. ' +
+        'Gebruik alleen URLs die je echt hebt gezien en verzin niets. Geef maximaal 4 resultaten, het beste eerst; ' +
+        'vind je niets betrouwbaars, geef dan een lege lijst.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: [
+                `Stuk: ${item.name}`,
+                item.brand && `Merk: ${item.brand}`,
+                `Soort: ${item.category}`,
+                item.colors.length > 0 && `Kleur: ${item.colors.join('/')}`,
+                item.shop && `Gekocht bij: ${item.shop}`,
+                item.notes && `Notities: ${item.notes}`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+            },
+            ...(img ? [img] : []),
+          ],
+        },
+      ] as Anthropic.Beta.BetaMessageParam[],
+    }
+    let msg = await ai.beta.messages.parse(params)
+    // A long search/fetch turn can pause; resume it by sending the partial turn back.
+    for (let i = 0; i < 3 && msg.stop_reason === 'pause_turn'; i++) {
+      params.messages.push({ role: 'assistant', content: msg.content })
+      msg = await ai.beta.messages.parse(params)
+    }
+    return parsed(msg).matches.filter((m) => /^https:\/\//.test(m.imageUrl) && /^https:\/\//.test(m.url))
   } catch (e) {
     explain(e)
   }
@@ -216,11 +463,7 @@ export async function analyzeStyle(
 const MAX_IMAGES = 40
 
 async function thumbnail(item: Item): Promise<Anthropic.Beta.BetaImageBlockParam | undefined> {
-  if (item.photo) {
-    const small = await resizeImage(item.photo, 320)
-    const data = (await blobToDataUrl(small)).split(',')[1]
-    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }
-  }
+  if (item.photo) return imageBlock(item.photo, 320)
   if (item.photoUrl) return { type: 'image', source: { type: 'url', url: item.photoUrl } }
   return undefined
 }
@@ -259,17 +502,25 @@ async function wardrobeContent(items: Item[]): Promise<Anthropic.Beta.BetaConten
   return blocks
 }
 
+/** The place of a piece in a look, top to bottom. */
+export const LOOK_ROLES = ['Jas', 'Bovenstuk', 'Jurk', 'Onderstuk', 'Schoenen', 'Accessoire'] as const
+export type LookRole = (typeof LOOK_ROLES)[number]
+
 const StylistSchema = z.object({
   outfits: z.array(
     z.object({
       name: z.string(),
-      itemIds: z.array(z.string()),
+      pieces: z.array(z.object({ id: z.string(), role: z.enum(LOOK_ROLES) })),
       why: z.string().describe('1-2 zinnen waarom dit werkt, en waarom het bij deze persoon past'),
     }),
   ),
   missing: z.string().nullable().describe('Optioneel: één stuk dat de garderobe veel veelzijdiger zou maken'),
 })
-export type StylistResult = z.infer<typeof StylistSchema>
+type StylistOutput = z.infer<typeof StylistSchema>
+export interface StylistResult extends Omit<StylistOutput, 'outfits'> {
+  /** `pieces` (and `itemIds`) run top to bottom: jacket, top or dress, bottom, shoes, accessories. */
+  outfits: (StylistOutput['outfits'][number] & { itemIds: string[] })[]
+}
 
 export async function styleOutfits(
   p: Profile,
@@ -292,7 +543,9 @@ export async function styleOutfits(
         'Je bent een persoonlijke stylist. Je stelt outfits samen uitsluitend met stukken uit de garderobe hieronder en ' +
         'verwijst naar stukken met hun id. Je kent de persoon: volg het stijlprofiel en leer van wat diegene eerder goed ' +
         'vond, afwees en echt droeg. Herhaal afgewezen combinaties niet. Let op kleur, stijl, seizoen en gelegenheid, en geef ' +
-        'stukken die weinig gedragen worden een kans. Antwoord in het Nederlands.',
+        'stukken die weinig gedragen worden een kans. Elke look is compleet: een bovenstuk met een onderstuk (of een jurk), ' +
+        'altijd een paar schoenen uit de garderobe, en een jas of accessoire als dat past bij weer en gelegenheid. Geef ' +
+        'bij elk stuk zijn rol in de look. Antwoord in het Nederlands.',
       messages: [
         {
           role: 'user',
@@ -316,11 +569,21 @@ export async function styleOutfits(
       ],
     })
     const out = parsed(msg)
-    const known = new Set(items.map((i) => i.id))
-    out.outfits = out.outfits
-      .map((o) => ({ ...o, itemIds: o.itemIds.filter((id) => known.has(id)) }))
-      .filter((o) => o.itemIds.length > 0)
-    return out
+    const byId = new Map(items.map((i) => [i.id, i]))
+    const shoes = items.filter((i) => i.category === 'Schoenen').sort((a, b) => a.wornCount - b.wornCount)
+    const outfits = out.outfits
+      .map((o) => {
+        const pieces = o.pieces.filter((x, n) => byId.has(x.id) && o.pieces.findIndex((y) => y.id === x.id) === n)
+        // A look always gets shoes when there are any: fall back to the pair worn least, preferably for this season.
+        if (shoes.length > 0 && !pieces.some((x) => byId.get(x.id)!.category === 'Schoenen')) {
+          const pair = shoes.find((s) => s.seasons.length === 0 || s.seasons.includes(opts.season)) ?? shoes[0]
+          pieces.push({ id: pair.id, role: 'Schoenen' })
+        }
+        pieces.sort((a, b) => LOOK_ROLES.indexOf(a.role) - LOOK_ROLES.indexOf(b.role))
+        return { ...o, pieces, itemIds: pieces.map((x) => x.id) }
+      })
+      .filter((o) => o.pieces.length > 0)
+    return { ...out, outfits }
   } catch (e) {
     explain(e)
   }
