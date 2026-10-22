@@ -873,6 +873,22 @@ main {
   gap: 10px;
 }
 
+.btn-large {
+  min-height: 56px;
+  font-size: 1.05rem;
+}
+
+.more summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .panel-highlight {
   outline: 2px solid var(--strong);
 }

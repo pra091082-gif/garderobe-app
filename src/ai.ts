@@ -502,17 +502,25 @@ async function wardrobeContent(items: Item[]): Promise<Anthropic.Beta.BetaConten
   return blocks
 }
 
+/** The place of a piece in a look, top to bottom. */
+export const LOOK_ROLES = ['Jas', 'Bovenstuk', 'Jurk', 'Onderstuk', 'Schoenen', 'Accessoire'] as const
+export type LookRole = (typeof LOOK_ROLES)[number]
+
 const StylistSchema = z.object({
   outfits: z.array(
     z.object({
       name: z.string(),
-      itemIds: z.array(z.string()),
+      pieces: z.array(z.object({ id: z.string(), role: z.enum(LOOK_ROLES) })),
       why: z.string().describe('1-2 zinnen waarom dit werkt, en waarom het bij deze persoon past'),
     }),
   ),
   missing: z.string().nullable().describe('Optioneel: één stuk dat de garderobe veel veelzijdiger zou maken'),
 })
-export type StylistResult = z.infer<typeof StylistSchema>
+type StylistOutput = z.infer<typeof StylistSchema>
+export interface StylistResult extends Omit<StylistOutput, 'outfits'> {
+  /** `pieces` (and `itemIds`) run top to bottom: jacket, top or dress, bottom, shoes, accessories. */
+  outfits: (StylistOutput['outfits'][number] & { itemIds: string[] })[]
+}
 
 export async function styleOutfits(
   p: Profile,
@@ -535,7 +543,9 @@ export async function styleOutfits(
         'Je bent een persoonlijke stylist. Je stelt outfits samen uitsluitend met stukken uit de garderobe hieronder en ' +
         'verwijst naar stukken met hun id. Je kent de persoon: volg het stijlprofiel en leer van wat diegene eerder goed ' +
         'vond, afwees en echt droeg. Herhaal afgewezen combinaties niet. Let op kleur, stijl, seizoen en gelegenheid, en geef ' +
-        'stukken die weinig gedragen worden een kans. Antwoord in het Nederlands.',
+        'stukken die weinig gedragen worden een kans. Elke look is compleet: een bovenstuk met een onderstuk (of een jurk), ' +
+        'altijd een paar schoenen uit de garderobe, en een jas of accessoire als dat past bij weer en gelegenheid. Geef ' +
+        'bij elk stuk zijn rol in de look. Antwoord in het Nederlands.',
       messages: [
         {
           role: 'user',
@@ -559,11 +569,21 @@ export async function styleOutfits(
       ],
     })
     const out = parsed(msg)
-    const known = new Set(items.map((i) => i.id))
-    out.outfits = out.outfits
-      .map((o) => ({ ...o, itemIds: o.itemIds.filter((id) => known.has(id)) }))
-      .filter((o) => o.itemIds.length > 0)
-    return out
+    const byId = new Map(items.map((i) => [i.id, i]))
+    const shoes = items.filter((i) => i.category === 'Schoenen').sort((a, b) => a.wornCount - b.wornCount)
+    const outfits = out.outfits
+      .map((o) => {
+        const pieces = o.pieces.filter((x, n) => byId.has(x.id) && o.pieces.findIndex((y) => y.id === x.id) === n)
+        // A look always gets shoes when there are any: fall back to the pair worn least, preferably for this season.
+        if (shoes.length > 0 && !pieces.some((x) => byId.get(x.id)!.category === 'Schoenen')) {
+          const pair = shoes.find((s) => s.seasons.length === 0 || s.seasons.includes(opts.season)) ?? shoes[0]
+          pieces.push({ id: pair.id, role: 'Schoenen' })
+        }
+        pieces.sort((a, b) => LOOK_ROLES.indexOf(a.role) - LOOK_ROLES.indexOf(b.role))
+        return { ...o, pieces, itemIds: pieces.map((x) => x.id) }
+      })
+      .filter((o) => o.pieces.length > 0)
+    return { ...out, outfits }
   } catch (e) {
     explain(e)
   }
