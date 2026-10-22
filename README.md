@@ -13,8 +13,9 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 - **Maten en maatadvies**: bij de start (en later onder Profiel) vul je je afmetingen in, met uitleg hoe je meet. Bij elk kledingstuk leg je vast of de maat klein, goed of groot valt. Vóór je bestelt kies je merk en soort, of plak je de productlink: de AI zoekt de maattabel van het merk op en vergelijkt die met je afmetingen en met wat al goed past. Je krijgt een maat met uitleg, zekerheid en alternatief. Bij kinderen vraagt de app na een half jaar om opnieuw te meten.
 - **Stijltest per seizoen**: één keer per seizoen, dus maximaal vier keer per jaar, met vragen voor dat seizoen.
 - **Werk en vrije tijd**: de stylist kleedt je voor je werk volgens functie, branche en dresscode, of voor vrije tijd, een avond uit, sport, een feest of school.
-- **Kast**: kleding en schoenen met foto, merk, maat, kleur en seizoen. Zoeken, filteren en sorteren op meest of minst gedragen.
-- **Aankopen**: haalt bestellingen van **Zalando, BestSecret en Otrium** uit Gmail. Een bestelling gaat automatisch naar de juiste persoon als de mail Dames, Heren of Kinderen noemt.
+- **Kast**: kleding en schoenen met foto, merk, maat, kleur en seizoen. Foto maken met de camera of kiezen uit de galerij, ook meerdere tegelijk; met een Claude API-sleutel vult de AI naam, soort, kleur en seizoen in vanaf de foto. Zoeken, filteren en sorteren op meest of minst gedragen.
+- **Aankopen uit screenshots of links**: maak screenshots van *Mijn bestellingen* in de app van Zalando of BestSecret, of plak een productlink. De AI haalt de stukken eruit en knipt de productfoto's uit de screenshot. Geretourneerde stukken worden overgeslagen en stukken die al in de kast hangen staan uitgevinkt. Hiervoor is alleen een Claude API-sleutel nodig.
+- **Aankopen uit Gmail**: haalt bestellingen van **Zalando, BestSecret en Otrium** uit Gmail. Een bestelling gaat automatisch naar de juiste persoon als de mail Dames, Heren of Kinderen noemt.
 - **Inspiratie van internet** bij elk stuk, met bronlink en passende stukken uit de eigen kast.
 - **Outfits**: zelf samenstellen per gelegenheid, of "Verras me" (werkt zonder AI).
 - **Profiel**: stijlprofiel, wat de stylist geleerd heeft, statistieken, koppelingen en backup.
@@ -54,7 +55,7 @@ Bij de eerste keer koppelen meldt Google dat de app niet geverifieerd is. Dat kl
 
 ### Waarom geen directe koppeling met Zalando, BestSecret of Otrium?
 
-Die winkels bieden geen koppeling (API) voor klanten. Inloggen met je wachtwoord en hun site uitlezen is tegen hun voorwaarden en gaat bij elke wijziging stuk. De bestelbevestigingen in je mail bevatten dezelfde informatie, dus die gebruikt de app.
+Die winkels bieden geen koppeling (API) voor klanten. Inloggen met je wachtwoord en hun site uitlezen is tegen hun voorwaarden en gaat bij elke wijziging stuk. Screenshots van je bestellingen en de bestelbevestigingen in je mail bevatten dezelfde informatie, dus die gebruikt de app.
 
 ## Ontwikkelen
 

@@ -1,17 +1,60 @@
 import { useEffect, useState } from 'react'
 
-/** Scales a photo down so it stays small in IndexedDB (longest side `max` px). */
-export async function resizeImage(file: Blob, max = 900): Promise<Blob> {
-  const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height))
+/** Decodes an image; falls back to an <img> element where createImageBitmap cannot read the file (older iOS). */
+async function decode(
+  file: Blob,
+): Promise<{ source: CanvasImageSource; width: number; height: number; close(): void }> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    return { source: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() }
+  } catch {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.src = url
+    try {
+      await img.decode()
+    } catch {
+      URL.revokeObjectURL(url)
+      throw new Error('Foto kon niet worden gelezen')
+    }
+    return { source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => URL.revokeObjectURL(url) }
+  }
+}
+
+export interface Box {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * Scales a photo down so it stays small in IndexedDB (longest side `max` px).
+ * With `crop` (in pixels of the original) only that part is kept.
+ */
+export async function resizeImage(file: Blob, max = 900, crop?: Box): Promise<Blob> {
+  const img = await decode(file)
+  const area = crop ?? { x: 0, y: 0, width: img.width, height: img.height }
+  const scale = Math.min(1, max / Math.max(area.width, area.height))
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * scale)
-  canvas.height = Math.round(bitmap.height * scale)
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
+  canvas.width = Math.max(1, Math.round(area.width * scale))
+  canvas.height = Math.max(1, Math.round(area.height * scale))
+  const ctx = canvas.getContext('2d')!
+  // White behind transparent PNGs, otherwise they turn black as JPEG.
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img.source, area.x, area.y, area.width, area.height, 0, 0, canvas.width, canvas.height)
+  img.close()
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Foto verwerken mislukt'))), 'image/jpeg', 0.82),
   )
+}
+
+/** Width and height of an image in pixels. */
+export async function imageSize(file: Blob): Promise<{ width: number; height: number }> {
+  const img = await decode(file)
+  img.close()
+  return { width: img.width, height: img.height }
 }
 
 export function useObjectUrl(blob?: Blob): string | undefined {

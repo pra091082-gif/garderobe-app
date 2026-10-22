@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StylistResult } from '../ai'
-import { SEASONS, addFeedback, addOutfit, occasionsFor, type Occasion, type Season } from '../db'
+import { SEASONS, addFeedback, boughtOnline, addOutfit, occasionsFor, type Occasion, type Season } from '../db'
 import { newSignals } from '../learn'
 import { useFeedback, useProfile, useProfileItems } from '../profile'
 import { useSettings } from '../settings'
@@ -30,7 +30,7 @@ export function StylistView() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
 
-  const onlineCount = items.filter((i) => i.source === 'gmail').length
+  const onlineCount = items.filter((i) => boughtOnline(i)).length
   const learned = feedback.filter((f) => f.kind !== 'quiz').length
 
   async function ask() {
@@ -42,7 +42,7 @@ export function StylistView() {
     try {
       // "Mostly online purchases" still lets the stylist add shoes/accessories from the rest of the closet.
       const pool = onlyOnline
-        ? items.filter((i) => i.source === 'gmail' || i.category === 'Schoenen' || i.category === 'Accessoires')
+        ? items.filter((i) => boughtOnline(i) || i.category === 'Schoenen' || i.category === 'Accessoires')
         : items
       const { styleOutfits } = await import('../ai')
       setResult(await styleOutfits(profile, pool, feedback, {

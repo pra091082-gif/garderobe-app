@@ -129,7 +129,8 @@ export interface Item {
   photo?: Blob
   /** Shop image used when the photo could not be downloaded (cross-origin). */
   photoUrl?: string
-  source: 'manual' | 'gmail'
+  /** Where it came from: added by hand, a Gmail order mail, or a shop screenshot or product link. */
+  source: 'manual' | 'gmail' | 'shop'
   shop?: string
   size?: string
   price?: number
@@ -139,6 +140,11 @@ export interface Item {
   wornCount: number
   lastWorn?: number
   createdAt: number
+}
+
+/** Bought in an online shop (imported from mail, a screenshot or a product link). */
+export function boughtOnline(item: Item): boolean {
+  return item.source !== 'manual'
 }
 
 export interface Outfit {
