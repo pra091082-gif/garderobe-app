@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ShopOrder, ShopPurchase } from '../ai'
 import { db, newId, type Item, type Profile } from '../db'
 import { connect, getOrderMail, isConnected, searchOrderMails, type OrderMail } from '../gmail'
@@ -12,6 +12,15 @@ import { SizeAdvisor } from './SizeAdvisor'
 import { ColorDot, Loading, PhotoButtons } from './ui'
 
 const BATCH = 10
+
+/**
+ * Order pages of the shops. On a phone with the shop app installed these links open the app itself;
+ * otherwise the website, where you log in.
+ */
+const SHOP_LINKS = [
+  { name: 'BestSecret', url: 'https://www.bestsecret.com/' },
+  { name: 'Zalando', url: 'https://www.zalando.nl/myaccount/orders/' },
+]
 
 /** An order waiting for review, from a Gmail mail, a screenshot or a product link. */
 interface Found {
@@ -47,6 +56,25 @@ export function PurchasesView() {
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
+  // Set after opening a shop; once the person comes back, the screenshot step is highlighted.
+  const [away, setAway] = useState(false)
+  const [back, setBack] = useState(false)
+
+  useEffect(() => {
+    if (!away) return
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      setAway(false)
+      setBack(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [away])
+
+  const awayToShop = () => {
+    setBack(false)
+    setAway(true)
+  }
 
   const ready = !!settings.anthropicKey && !!settings.googleClientId
   const hasKey = !!settings.anthropicKey
@@ -149,6 +177,7 @@ export function PurchasesView() {
 
   const readScreenshots = (files: File[]) =>
     run(async () => {
+      setBack(false)
       const { extractFromScreenshot } = await import('../ai')
       for (const [n, file] of files.entries()) {
         setStatus(`Screenshot ${n + 1} van ${files.length} lezen…`)
@@ -239,7 +268,31 @@ export function PurchasesView() {
           Vul eerst je Claude API-sleutel in onder <a href="#profiel">Profiel → Koppelingen</a>.
         </p>
       ) : (
-        <div className="panel">
+        <div className={`panel ${back ? 'panel-highlight' : ''}`}>
+          <ol className="steps">
+            <li>Open je bestellingen in de winkel-app.</li>
+            <li>Maak screenshots van wat je hebt gekocht.</li>
+            <li>Kom terug en kies de screenshots.</li>
+          </ol>
+          <div className="shop-links">
+            {SHOP_LINKS.map((s) => (
+              <a
+                key={s.name}
+                className="btn"
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={awayToShop}
+              >
+                <Icon name="bag" size={18} /> {s.name}
+              </a>
+            ))}
+          </div>
+          {back && (
+            <p>
+              <strong>Welkom terug.</strong> Kies nu de screenshots van je bestellingen.
+            </p>
+          )}
           <PhotoButtons
             multiple
             camera={false}
@@ -380,7 +433,6 @@ export function PurchasesView() {
           )}
         </div>
       )}
-
 
       {history.some((m) => m.itemCount > 0) && (
         <>

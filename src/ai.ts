@@ -279,6 +279,75 @@ export async function extractFromLink(url: string): Promise<ShopOrder> {
   }
 }
 
+// ---------- Shop photo of a piece ----------
+
+const ShopPhotoSchema = z.object({
+  matches: z.array(
+    z.object({
+      name: z.string().describe('Productnaam zoals de winkel hem noemt'),
+      shop: z.string().describe('Naam van de webwinkel of het merk'),
+      url: z.string().describe('Exacte URL van de productpagina die je zelf hebt gezien'),
+      imageUrl: z.string().describe('Exacte URL van de productfoto (packshot), zoals op de pagina gezien'),
+      match: z.enum(['zelfde stuk', 'lijkt erop']).describe('"zelfde stuk" alleen als merk, model en kleur kloppen'),
+    }),
+  ),
+})
+export type ShopPhoto = z.infer<typeof ShopPhotoSchema>['matches'][number]
+
+/** Looks up the shop's own product photo of a piece (same brand, model and colour), best match first. */
+export async function findShopPhotos(item: Item): Promise<ShopPhoto[]> {
+  try {
+    const img = await thumbnail(item)
+    const ai = client()
+    const params = {
+      model: MODEL,
+      max_tokens: 16000,
+      ...FALLBACK,
+      output_config: { effort: 'medium' as const, format: betaZodOutputFormat(ShopPhotoSchema) },
+      tools: [
+        { type: 'web_search_20260209' as const, name: 'web_search' as const, max_uses: 5 },
+        { type: 'web_fetch_20260209' as const, name: 'web_fetch' as const, max_uses: 6 },
+      ],
+      system:
+        'Je zoekt de officiële productfoto van een kledingstuk dat iemand al heeft, voor een digitale kledingkast: ' +
+        'een nette packshot of foto op een model van de webwinkel of het merk (bijv. Zalando, BestSecret, de site van het ' +
+        'merk). Zoek op merk, model en kleur, open de productpagina met web_fetch en neem de URL van de hoofdfoto over. ' +
+        'Gebruik alleen URLs die je echt hebt gezien en verzin niets. Geef maximaal 4 resultaten, het beste eerst; ' +
+        'vind je niets betrouwbaars, geef dan een lege lijst.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: [
+                `Stuk: ${item.name}`,
+                item.brand && `Merk: ${item.brand}`,
+                `Soort: ${item.category}`,
+                item.colors.length > 0 && `Kleur: ${item.colors.join('/')}`,
+                item.shop && `Gekocht bij: ${item.shop}`,
+                item.notes && `Notities: ${item.notes}`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+            },
+            ...(img ? [img] : []),
+          ],
+        },
+      ] as Anthropic.Beta.BetaMessageParam[],
+    }
+    let msg = await ai.beta.messages.parse(params)
+    // A long search/fetch turn can pause; resume it by sending the partial turn back.
+    for (let i = 0; i < 3 && msg.stop_reason === 'pause_turn'; i++) {
+      params.messages.push({ role: 'assistant', content: msg.content })
+      msg = await ai.beta.messages.parse(params)
+    }
+    return parsed(msg).matches.filter((m) => /^https:\/\//.test(m.imageUrl) && /^https:\/\//.test(m.url))
+  } catch (e) {
+    explain(e)
+  }
+}
+
 // ---------- Style test ----------
 
 const Hex = z.string().describe('Hex-kleur, bijv. #1f2f55')

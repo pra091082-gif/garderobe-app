@@ -855,6 +855,33 @@ main {
   overflow: hidden;
 }
 
+.shop-photo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-photo li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shop-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.panel-highlight {
+  outline: 2px solid var(--strong);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
 .link-row {
   display: flex;
   gap: 10px;

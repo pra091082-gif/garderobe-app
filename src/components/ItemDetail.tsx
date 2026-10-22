@@ -4,6 +4,7 @@ import { db, deleteItem, markWorn, type Item } from '../db'
 import { formatPrice } from '../util'
 import { Icon } from './icons'
 import { Inspiration } from './Inspiration'
+import { ShopPhoto } from './ShopPhoto'
 import { ColorDot, Photo } from './ui'
 
 export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () => void; onClose: () => void }) {
@@ -49,6 +50,8 @@ export function ItemDetail({ item, onEdit, onClose }: { item: Item; onEdit: () =
           Bewerken
         </button>
       </div>
+
+      <ShopPhoto item={item} />
 
       <dl className="facts">
         <dt>Categorie</dt>

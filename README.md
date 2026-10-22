@@ -14,8 +14,9 @@ Je kast staat lokaal op je apparaat (IndexedDB). Er is geen eigen server: de app
 - **Stijltest per seizoen**: één keer per seizoen, dus maximaal vier keer per jaar, met vragen voor dat seizoen.
 - **Werk en vrije tijd**: de stylist kleedt je voor je werk volgens functie, branche en dresscode, of voor vrije tijd, een avond uit, sport, een feest of school.
 - **Kast**: kleding en schoenen met foto, merk, maat, kleur en seizoen. Foto maken met de camera of kiezen uit de galerij, ook meerdere tegelijk; met een Claude API-sleutel vult de AI naam, soort, kleur en seizoen in vanaf de foto. Zoeken, filteren en sorteren op meest of minst gedragen.
-- **Aankopen uit screenshots of links**: maak screenshots van *Mijn bestellingen* in de app van Zalando of BestSecret, of plak een productlink. De AI haalt de stukken eruit en knipt de productfoto's uit de screenshot. Geretourneerde stukken worden overgeslagen en stukken die al in de kast hangen staan uitgevinkt. Hiervoor is alleen een Claude API-sleutel nodig.
+- **Aankopen uit screenshots of links**: met de knoppen BestSecret en Zalando open je je bestellingen (in de winkel-app als die op je telefoon staat). Maak screenshots van *Mijn bestellingen* in de app van Zalando of BestSecret, of plak een productlink. De AI haalt de stukken eruit en knipt de productfoto's uit de screenshot. Geretourneerde stukken worden overgeslagen en stukken die al in de kast hangen staan uitgevinkt. Hiervoor is alleen een Claude API-sleutel nodig.
 - **Aankopen uit Gmail**: haalt bestellingen van **Zalando, BestSecret en Otrium** uit Gmail. Een bestelling gaat automatisch naar de juiste persoon als de mail Dames, Heren of Kinderen noemt.
+- **Winkelfoto**: bij elk stuk zoekt de AI de officiële productfoto van hetzelfde stuk (merk, model, kleur) bij de webwinkel of het merk. Je kiest er een; je eigen foto blijft bewaard en kun je terugzetten.
 - **Inspiratie van internet** bij elk stuk, met bronlink en passende stukken uit de eigen kast.
 - **Outfits**: zelf samenstellen per gelegenheid, of "Verras me" (werkt zonder AI).
 - **Profiel**: stijlprofiel, wat de stylist geleerd heeft, statistieken, koppelingen en backup.

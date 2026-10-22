@@ -127,6 +127,8 @@ export interface Item {
   notes: string
   favorite: boolean
   photo?: Blob
+  /** The person's own photo, kept when a shop photo replaced it so it can be put back. */
+  ownPhoto?: Blob
   /** Shop image used when the photo could not be downloaded (cross-origin). */
   photoUrl?: string
   /** Where it came from: added by hand, a Gmail order mail, or a shop screenshot or product link. */
